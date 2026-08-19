@@ -333,6 +333,13 @@ long as the tracker is running, and the overlay follows it.
 *Show table* lists every completion in order, *Map* opens the map view, *Reset run* starts
 a fresh run and forgets the stored one, *Start in-game timer* attaches the optional clock.
 
+The in-game timer is a pause button, not a stopwatch that can only be thrown away: stopping
+it keeps the total, restarting continues from there, and the total is saved with the run, so
+a run spread over several evenings adds up. Only *Reset run* puts it back to zero. While it
+is attached, the button reads the game's loading flag once a second and shows `· loading`
+whenever the game is on a loading screen, which is also the quickest way to confirm it
+attached to the right build.
+
 The run is saved to `run.json` beside the executable a couple of seconds after anything
 changes, and resumed automatically next time. Back it up by copying that one file; move a
 run to another machine the same way.
