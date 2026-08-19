@@ -1,0 +1,66 @@
+@ -0,0 +1,65 @@
+Copyright (c) 2026 Devid Mazzaferro
+
+WitcherTrack is licensed under the
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License
+(SPDX identifier: CC-BY-NC-SA-4.0).
+
+The full legal code is at:
+
+    https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+
+and a plain-language summary at:
+
+    https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+The legal code at that address governs. The summary below is for orientation only and is
+not a substitute for it.
+
+--------------------------------------------------------------------------------
+In short
+--------------------------------------------------------------------------------
+
+You are free to:
+
+  * Share    - copy and redistribute the material in any medium or format
+  * Adapt    - remix, transform, and build upon the material
+
+under the following terms:
+
+  * Attribution  - you must give appropriate credit, provide a link to this
+                   license, and indicate if changes were made.
+  * NonCommercial - you may not use the material for commercial purposes.
+  * ShareAlike   - if you remix, transform, or build upon the material, you must
+                   distribute your contributions under the same license.
+
+--------------------------------------------------------------------------------
+Third-party material
+--------------------------------------------------------------------------------
+
+The Witcher 3, logo, icons & map are the property of CD PROJEKT RED and are used
+without permission. Under section 9.4 of the CD PROJEKT RED User Agreement:
+
+    If you create your User Generated Content using any of CD PROJEKT RED
+    graphics, audio, video, text or any other content - you may use it and share
+    for personal enjoyment, but we do not allow any use of it for financial
+    profit.
+
+This is why the NonCommercial term above is not negotiable: it is a condition the
+material this project is built on already imposes.
+
+The region maps under data/map/ were fitted against witcher3map by untamed0 and
+contributors (https://github.com/untamed0/witcher3map), itself licensed
+CC BY-NC-SA 4.0 and built from CD PROJEKT RED's map art under the same section 9.4.
+
+The three files under mod/modWitcherTrack/content/scripts/game/ are CD PROJEKT RED's own
+game scripts with seven one-line calls added; they are redistributed only because the
+reporter cannot function without them, and every added line is marked and documented in
+mod/HOOKS.md.
+
+The savegame container format was established with reference to W3SavegameEditor by
+Atvaark (https://github.com/Atvaark/W3SavegameEditor), MIT licensed.
+
+This project is not affiliated with or endorsed by CD PROJEKT RED.
+
+The in game timer was based on Gaztin (https://github.com/gaztin)'s work for the 
+CDPR speedrunning community.
