@@ -196,6 +196,7 @@
    <div class="toolbar" id="toolbar"></div>
   </div>
   <div id="reporter-notice"></div>
+  <div id="fresh-notice"></div>
   <div id="app"><div class="empty">connecting...</div></div>
   <footer id="status"></footer>
 </div>
@@ -767,6 +768,42 @@ async function reporterNotice(state) {
   box.appendChild(note);
 }
 
+/* The other failure that looks like nothing being wrong.
+ *
+ * run.json lives beside the executable, so updating the tracker by extracting it into a
+ * different folder leaves the run behind. The next report re-asserts every completion, the
+ * totals come back right, and only the timings are lost - re-dated to the moment the
+ * tracker was reopened. There is nothing to see unless someone says so.
+ *
+ * Narrow on purpose. It needs a session that began with no stored run and that nobody
+ * reset, plus completed quests and points of interest, which a genuinely new playthrough
+ * does not have. A standalone Hearts of Stone or Blood and Wine start is exactly the case
+ * that would trip a threshold counting diagrams: it hands over a pre-made Geralt who
+ * already knows dozens of them, and no quest history at all.
+ */
+function freshRunNotice(state, mode) {
+  const box = document.getElementById("fresh-notice");
+  const counted = kind => (mode.byKind.find(k => k.kind === kind) || {}).completed || 0;
+
+  if (!state.startedFresh || counted("Quest") + counted("PointOfInterest") < 10) {
+    box.textContent = "";
+    return;
+  }
+
+  if (box.firstChild) return;   // already up; do not rebuild it on every push
+
+  const note = el("div", "notice");
+  note.innerHTML =
+    "<b>This run has no stored history.</b> The tracker started without a "
+    + "<code>run.json</code> beside it and the game has already reported a run in progress, "
+    + "which is what updating into a different folder looks like. The counts are right; the "
+    + "times are not, because a report says <i>that</i> something is done and never when. "
+    + "To get them back: close the tracker, copy <code>run.json</code> from the folder you "
+    + "were running before into this one, and start it again. If this really is a new run, "
+    + "press <i>Reset run</i> and the notice goes away.";
+  box.appendChild(note);
+}
+
 async function render(state) {
   lastState = state;
   reporterNotice(state);
@@ -801,6 +838,10 @@ async function render(state) {
   const mode = state.modes.find(m => m.rulesetId === state.activeModeId);
   const info = modesCatalog.find(m => m.id === state.activeModeId);
   document.getElementById("mode-tag").textContent = info ? info.name : "";
+  // Before the picker returns, not after: a fresh start has no mode chosen yet, and the
+  // picker is the first thing an update lands you on. With no selection the fullest mode
+  // stands in, since the notice only ever reads counts off it.
+  freshRunNotice(state, mode || state.modes.reduce((a, b) => b.completed > a.completed ? b : a));
   if (!mode) { renderPicker(); return; }
   renderDashboard(state, mode);
 }
