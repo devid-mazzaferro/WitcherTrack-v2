@@ -419,6 +419,19 @@ static async Task ServeAsync(int port)
             $"Resumed run: {storedRun.Unlocks.Count:N0} completions, "
             + $"{TimeSpan.FromSeconds(storedRun.PlaySeconds):h\\h\\ mm\\m} played, from {RunStore.DefaultPath}");
     }
+    else
+    {
+        // Said out loud, because the silent version of this is what makes an update cost a
+        // run's history. The file sits beside the executable, so extracting a new build
+        // into a different folder leaves it behind, and nothing afterwards looks wrong: the
+        // next report re-asserts every completion, and only the timings are gone.
+        state.NoteFreshStart();
+        Console.WriteLine($"No stored run at {RunStore.DefaultPath} - starting a new one.");
+        Console.WriteLine(
+            "  If you have just updated, close this, copy run.json from the folder you were "
+            + "running before into this one, and start again. A report says that something "
+            + "is done, never when, so a run recovered later carries today's times.");
+    }
 
     SaveRunInBackground(state);
 
@@ -934,6 +947,10 @@ internal sealed record SourceStatus(string Name, bool Connected, DateTimeOffset?
 /// <param name="IgtLoading">
 /// Whether the game is on a loading screen, or null when the clock is not attached.
 /// </param>
+/// <param name="StartedFresh">
+/// True when the tracker started with no stored run and nobody asked for a new one, which
+/// is what an update extracted into a different folder looks like.
+/// </param>
 internal sealed record StateResponse(
     DateTimeOffset GeneratedAt,
     IReadOnlyList<RulesetProgress> Modes,
@@ -946,7 +963,8 @@ internal sealed record StateResponse(
     bool IgtActive = false,
     string? IgtDetail = null,
     double? IgtElapsedSeconds = null,
-    bool? IgtLoading = null);
+    bool? IgtLoading = null,
+    bool StartedFresh = false);
 
 /// <summary>The payload behind <c>/api/timeline</c>: the whole run, oldest first.</summary>
 /// <param name="IgtControls">
