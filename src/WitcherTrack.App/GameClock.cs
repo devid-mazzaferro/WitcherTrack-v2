@@ -56,13 +56,13 @@ internal sealed partial class GameClock : IDisposable
 
     private readonly Lock _gate = new();
     private readonly TimeSpan _pollInterval;
+    private readonly IgtAccumulator _accumulator = new();
 
     private CancellationTokenSource? _loop;
     private IntPtr _processHandle;
     private nint _flagAddress;
-    private TimeSpan _elapsed;
-    private bool? _lastNotLoading;
-    private string? _detail;
+    private string? _build;
+    private string? _failure;
 
     public GameClock(TimeSpan? pollInterval = null)
     {
@@ -76,25 +76,52 @@ internal sealed partial class GameClock : IDisposable
     }
 
     /// <summary>
-    /// Which build was detected, or why attachment failed - shown in the interface so a
-    /// player knows whether the option actually did anything.
+    /// Which build was detected, or why attachment failed - shown in the interface so
+    /// anyone can tell whether the option actually did anything.
     /// </summary>
+    /// <remarks>
+    /// The build name survives for as long as the clock stays attached. It used to be
+    /// cleared by the first successful read, which left the interface with nothing to show
+    /// exactly when it was working - and the build name is the one thing worth checking
+    /// when the accumulated time looks wrong, because a wrong build means a wrong offset
+    /// and a flag that never changes.
+    /// </remarks>
     public string? Detail
     {
-        get { lock (_gate) { return _detail; } }
+        get { lock (_gate) { return _failure ?? _build; } }
     }
 
-    /// <summary>Total in-game time accumulated since the clock was last started.</summary>
+    /// <summary>Total in-game time accumulated, across every start and pause.</summary>
     public TimeSpan Elapsed
     {
-        get { lock (_gate) { return _elapsed; } }
+        get { lock (_gate) { return _accumulator.Elapsed; } }
     }
 
     /// <summary>
-    /// Attaches to the running game and starts accumulating. Resets the accumulator to
-    /// zero: each start is the beginning of a new run's in-game clock, matching how a
-    /// player would start an autosplitter alongside loading their save.
+    /// Whether the game is on a loading screen right now, or null when the clock is not
+    /// attached or has not read the flag yet.
     /// </summary>
+    /// <remarks>
+    /// Published so the interface can stop advancing its own display while a load is on.
+    /// Without it a dashboard has no way to tell a paused clock from a slow update, and
+    /// the only thing it can do between readings is guess - which is what made the
+    /// displayed time run straight through loading screens that this had already excluded.
+    /// </remarks>
+    public bool? IsLoading
+    {
+        get { lock (_gate) { return _loop is null ? null : _accumulator.Loading; } }
+    }
+
+    /// <summary>
+    /// Attaches to the running game and accumulates onto whatever total is already there.
+    /// </summary>
+    /// <remarks>
+    /// Starting does <em>not</em> zero the total. Stopping is a pause - the run continues
+    /// tomorrow, the game gets closed for the night, the game crashes and is reopened - and
+    /// a start that silently threw the accumulated hours away would make pausing a trap
+    /// rather than a feature. Zeroing is <see cref="Reset"/>, which is reached by resetting
+    /// the run itself, the one action that already means "this is a new run".
+    /// </remarks>
     /// <returns>
     /// True if a supported build was found and attached to. False leaves the clock stopped
     /// and <see cref="Detail"/> explains why - the game is not running, or its build is not
@@ -108,7 +135,8 @@ internal sealed partial class GameClock : IDisposable
         {
             lock (_gate)
             {
-                _detail = detail;
+                _build = null;
+                _failure = detail;
             }
 
             return false;
@@ -118,8 +146,12 @@ internal sealed partial class GameClock : IDisposable
 
         lock (_gate)
         {
-            _elapsed = TimeSpan.Zero;
-            _lastNotLoading = null;
+            _build = detail;
+            _failure = null;
+
+            // The last loading flag read belongs to a previous attachment and says nothing
+            // about the game running now.
+            _accumulator.Forget();
             _loop = cancellation;
         }
 
@@ -127,7 +159,27 @@ internal sealed partial class GameClock : IDisposable
         return true;
     }
 
-    /// <summary>Detaches and stops accumulating. <see cref="Elapsed"/> keeps its last value.</summary>
+    /// <summary>
+    /// Seeds the total, for a run resumed from disk. Call before <see cref="Start"/>.
+    /// </summary>
+    public void Seed(TimeSpan total)
+    {
+        lock (_gate)
+        {
+            _accumulator.Seed(total);
+        }
+    }
+
+    /// <summary>Throws the accumulated total away. Belongs to starting a new run.</summary>
+    public void Reset()
+    {
+        lock (_gate)
+        {
+            _accumulator.Seed(TimeSpan.Zero);
+        }
+    }
+
+    /// <summary>Detaches and pauses accumulating. <see cref="Elapsed"/> keeps its value.</summary>
     public void Stop()
     {
         CancellationTokenSource? loop;
@@ -147,6 +199,13 @@ internal sealed partial class GameClock : IDisposable
         if (handle != IntPtr.Zero)
         {
             CloseHandle(handle);
+        }
+
+        lock (_gate)
+        {
+            // Nothing is loading once nothing is attached, and leaving the last reading in
+            // place would freeze a dashboard's display on it.
+            _accumulator.Forget();
         }
     }
 
@@ -236,13 +295,20 @@ internal sealed partial class GameClock : IDisposable
     }
 
     /// <summary>
-    /// Polls the "not loading" flag and accumulates elapsed real time onto the in-game
-    /// total for every interval spent not loading - the same accrual an autosplitter's own
-    /// timer does, at the same granularity: a periodic sample, not a frame-accurate one.
+    /// Polls the "not loading" flag and hands each interval to <see cref="IgtAccumulator"/>,
+    /// which decides whether it counts - the same accrual an autosplitter's own timer does,
+    /// at the same granularity: a periodic sample, not a frame-accurate one.
     /// </summary>
+    /// <remarks>
+    /// Timed on <see cref="Stopwatch"/> rather than on the wall clock. The two agree until
+    /// the system clock is stepped - an NTP correction, a timezone change, a laptop waking
+    /// up - and then a wall-clock difference is not a duration at all: it can jump forwards
+    /// by minutes or run backwards, and a run tracked over several evenings has plenty of
+    /// opportunity to meet one.
+    /// </remarks>
     private async Task PollAsync(CancellationToken cancellationToken)
     {
-        DateTimeOffset lastTick = DateTimeOffset.UtcNow;
+        long lastTick = Stopwatch.GetTimestamp();
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -255,38 +321,22 @@ internal sealed partial class GameClock : IDisposable
                 return;
             }
 
-            DateTimeOffset now = DateTimeOffset.UtcNow;
-            TimeSpan delta = now - lastTick;
-            lastTick = now;
+            TimeSpan delta = Stopwatch.GetElapsedTime(lastTick);
+            lastTick = Stopwatch.GetTimestamp();
 
             bool? notLoading = ReadNotLoading();
 
             lock (_gate)
             {
-                if (notLoading is null)
-                {
-                    // The process went away or the read failed. Stay attached rather than
-                    // tearing down - the game regularly owns the foreground exclusively
-                    // during a scene change, and a transient read failure should not lose
-                    // the run's accumulated time.
-                    _detail = "lost contact with the game (will keep trying)";
-                }
-                else
-                {
-                    _detail = null;
+                // The process went away or the read failed. Stay attached rather than
+                // tearing down - the game regularly owns the foreground exclusively during
+                // a scene change, and a transient read failure should not lose the run's
+                // accumulated time.
+                _failure = notLoading is null
+                    ? "lost contact with the game (will keep trying)"
+                    : null;
 
-                    // Charge this interval to in-game time only if the game was not loading
-                    // for the whole of it. Treating the boundary sample as representative of
-                    // the interval it closes is the same approximation a periodic-poll
-                    // autosplitter makes; at a 200ms interval the error is well under a
-                    // percentage point of any run worth tracking.
-                    if (_lastNotLoading ?? notLoading.Value)
-                    {
-                        _elapsed += delta;
-                    }
-
-                    _lastNotLoading = notLoading;
-                }
+                _accumulator.Sample(delta, notLoading);
             }
         }
     }
@@ -323,6 +373,69 @@ internal sealed partial class GameClock : IDisposable
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CloseHandle(IntPtr handle);
+}
+
+/// <summary>
+/// Decides how much of each polled interval counts as in-game time.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Separated from <see cref="GameClock"/> for the same reason
+/// <see cref="GameBuildDetector"/> is: this is the rule that decides what the number
+/// means, and it can be checked against a scripted sequence of loading screens on any
+/// platform, with no game running and no process memory involved.
+/// </para>
+/// <para>
+/// An interval is charged when the sample that <em>closes</em> it says the game was not
+/// loading. The previous sample used to decide instead, which charged the first interval
+/// of every loading screen and dropped the first interval of every return to play; both
+/// are the same 200ms, so the totals were close, but the rule read backwards from the
+/// autosplitter's own <c>isLoading { return !current.notLoading; }</c> and was that much
+/// harder to reason about.
+/// </para>
+/// <para>
+/// A failed read charges nothing. Time that cannot be classified is not silently counted
+/// as play: a run left open while the game is closed would otherwise accumulate hours.
+/// </para>
+/// </remarks>
+internal sealed class IgtAccumulator
+{
+    /// <summary>Everything charged so far.</summary>
+    public TimeSpan Elapsed { get; private set; }
+
+    /// <summary>
+    /// The last reading: true on a loading screen, false while playing, null when nothing
+    /// has been read yet or the last read failed.
+    /// </summary>
+    public bool? Loading { get; private set; }
+
+    /// <summary>Offers one interval, closed by one reading of the game's flag.</summary>
+    /// <param name="delta">How long the interval lasted.</param>
+    /// <param name="notLoading">The flag, or null if it could not be read.</param>
+    public void Sample(TimeSpan delta, bool? notLoading)
+    {
+        if (notLoading is null)
+        {
+            return;
+        }
+
+        Loading = !notLoading.Value;
+
+        if (notLoading.Value)
+        {
+            Elapsed += delta;
+        }
+    }
+
+    /// <summary>Sets the total, for a run resumed from disk or reset back to zero.</summary>
+    public void Seed(TimeSpan total)
+    {
+        Elapsed = total;
+        Loading = null;
+    }
+
+    /// <summary>Drops the last reading without touching the total.</summary>
+    public void Forget() => Loading = null;
 }
 
 /// <summary>
