@@ -502,12 +502,21 @@ static async Task ServeAsync(int port)
 #pragma warning disable CA1416 // gameClock is only ever non-null on Windows; see its assignment above.
     app.MapPost("/api/reset", () =>
     {
+        TimeSpan discarded = gameClock?.Elapsed ?? TimeSpan.Zero;
         state.Reset();
 
         // The in-game clock is part of the run, so it goes back to zero with it. This is
         // the only thing that zeroes it: stopping the clock is a pause, and a new run is
         // the one moment where throwing the accumulated time away is what was meant.
         gameClock?.Reset();
+
+        // Noted after the reset cleared the previous run's record, so this is the first
+        // line of the new one and says what the old one had reached.
+        if (discarded > TimeSpan.Zero)
+        {
+            state.NoteIgtControl(IgtControl.Reset, discarded);
+        }
+
         return Results.Ok(state.Snapshot());
     });
 #pragma warning restore CA1416
@@ -542,8 +551,15 @@ static async Task ServeAsync(int port)
 
         bool started = gameClock.Start();
 
-        // Nothing was recorded, so nothing would otherwise be pushed, and every open
-        // dashboard would keep showing the clock as it was before this call.
+        // Only an attachment that actually happened is an act on the clock. A press that
+        // could not find the game changed nothing and does not belong in the record.
+        if (started)
+        {
+            state.NoteIgtControl(IgtControl.Started, gameClock.Elapsed);
+        }
+
+        // Nothing was recorded in the event log, so nothing would otherwise be pushed, and
+        // every open dashboard would keep showing the clock as it was before this call.
         state.PublishNow();
         return Results.Json(new IgtStartResponse(started, gameClock.Detail), ApiJsonContext.Default.IgtStartResponse);
     });
@@ -563,7 +579,14 @@ static async Task ServeAsync(int port)
     // with it - only the running total for entries still to come stops advancing.
     app.MapPost("/api/igt/stop", () =>
     {
+        bool wasRunning = gameClock?.IsRunning ?? false;
         gameClock?.Stop();
+
+        if (wasRunning && gameClock is not null)
+        {
+            state.NoteIgtControl(IgtControl.Paused, gameClock.Elapsed);
+        }
+
         state.PublishNow();
         return Results.Ok(state.Snapshot());
     });
@@ -926,7 +949,53 @@ internal sealed record StateResponse(
     bool? IgtLoading = null);
 
 /// <summary>The payload behind <c>/api/timeline</c>: the whole run, oldest first.</summary>
-internal sealed record TimelineResponse(DateTimeOffset? RunStartedAt, IReadOnlyList<UnlockEvent> Unlocks);
+/// <param name="IgtControls">
+/// Every manual start, pause and reset of the in-game clock, oldest first. Empty for a run
+/// that never used it.
+/// </param>
+internal sealed record TimelineResponse(
+    DateTimeOffset? RunStartedAt,
+    IReadOnlyList<UnlockEvent> Unlocks,
+    IReadOnlyList<IgtControlEvent> IgtControls);
+
+/// <summary>What was done to the in-game clock.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<IgtControl>))]
+internal enum IgtControl
+{
+    /// <summary>Attached and accumulating, whether for the first time or after a pause.</summary>
+    Started,
+
+    /// <summary>Detached by hand. The total is kept.</summary>
+    Paused,
+
+    /// <summary>Put back to zero, which only resetting the run does.</summary>
+    Reset,
+}
+
+/// <summary>
+/// One deliberate act on the in-game clock, with the real time it happened at.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Speedrun rules require a single unbroken session, so a timer that can be paused is only
+/// as trustworthy as its record of having been paused. This is that record: wall-clock
+/// instants, kept alongside the run and printed to the console as they happen, so the gap
+/// between a pause and the start that follows it is a stated fact rather than something
+/// missing from the evidence.
+/// </para>
+/// <para>
+/// Recorded at the endpoint, so only a deliberate press lands here. The clock losing sight
+/// of the game is not an entry: it accumulates nothing while it cannot read the flag, and
+/// it never detaches on its own.
+/// </para>
+/// </remarks>
+/// <param name="At">
+/// When it happened, in UTC, the same clock every other timestamp in the run uses so the
+/// two can be lined up.
+/// </param>
+/// <param name="Action">What was done.</param>
+/// <param name="ElapsedSeconds">The clock's total at that moment.</param>
+internal sealed record IgtControlEvent(DateTimeOffset At, IgtControl Action, double ElapsedSeconds);
 
 /// <summary>One newly completed catalogue entry, for the timeline and the overlay feed.</summary>
 /// <param name="Region">
@@ -1073,6 +1142,8 @@ internal sealed record IgtStartResponse(bool Started, string? Detail);
 [JsonSerializable(typeof(TimelineResponse))]
 [JsonSerializable(typeof(IgtStartResponse))]
 [JsonSerializable(typeof(IgtStatusResponse))]
+[JsonSerializable(typeof(IgtControlEvent))]
+[JsonSerializable(typeof(IReadOnlyList<IgtControlEvent>))]
 [JsonSerializable(typeof(MapResponse))]
 [JsonSerializable(typeof(PersistedRun))]
 [JsonSerializable(typeof(Dictionary<string, MapCalibration>))]
