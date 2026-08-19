@@ -1,5 +1,5 @@
 /***********************************************************************/
-/**  modWitcherTrack  v0.16  - reporter for WitcherTrack
+/**  modWitcherTrack  v0.17  - reporter for WitcherTrack
 /**
 /**  Reports what the player has completed, so the tracker can read game
 /**  state directly instead of running OCR over the on-screen popups.
@@ -568,13 +568,26 @@ function WT_OnQuestUpdate( journalQuest : CJournalQuest )
 /// The index is reported rather than swept, which is the one place this file
 /// departs from reading state back. It is not a guess: it is the value the
 /// game is about to hand to AddCardToCollection, inside its own check that the
-/// name resolved to something. Sweeping here would re-list the whole
-/// collection - a hundred and fifty lines late in a run - on every single
-/// card, and the report on load re-reads all of it anyway.
+/// name resolved to something. Sweeping the *collection* here would re-list all
+/// of it - a hundred and fifty lines late in a run - on every single card, and
+/// the report on load re-reads it anyway. The map pins are a different question
+/// and are swept, as they are everywhere else; see the call below.
 function WT_OnGwentCardAdded( cardIndex : int )
 {
 	WT_EmitAt();
 	WT_Emit( "gwent", IntToString( cardIndex ), "done" );
+
+	// The card is trusted; the map pins still are not. This call was missing
+	// because the two were conflated: the paragraph above argues against
+	// re-listing the *collection*, and WT_Sweep does not touch the collection -
+	// it reads back map pins, exactly as every other live hook does.
+	//
+	// Without it, a card was the one live event that asked the game nothing. A
+	// point of interest cleared with nothing else happening afterwards then had
+	// to wait for an unrelated notification, or for the next load, before anyone
+	// looked. Reported against a savefile where cards were taken after a bandit
+	// camp was cleared and the camp stayed uncounted.
+	WT_Sweep();
 }
 
 /// Called from CR4HudModuleJournalUpdate.AddCraftingSchematicUpdate.
@@ -783,7 +796,7 @@ function WT_OnMapPinUpdate( mapPinName : name )
 
 exec function wt_ping()
 {
-	WT_Meta( "ping", "modWitcherTrack v0.16" );
+	WT_Meta( "ping", "modWitcherTrack v0.17" );
 }
 
 exec function wt_quests()
