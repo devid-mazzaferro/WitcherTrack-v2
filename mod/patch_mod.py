@@ -160,6 +160,23 @@ def find_one(root, filename):
     return matches[0]
 
 
+def insert_after_line(lines, pattern, call, start=0):
+    """Insert a call directly after the first line matching `pattern`.
+
+    For a function whose body ends in a `return`, appending to the end of the body would
+    put the call after it, where it can never run. This anchors on the last statement that
+    does run instead.
+    """
+    rx = re.compile(pattern)
+
+    for i in range(start, len(lines)):
+        if rx.search(lines[i]):
+            lines.insert(i + 1, f"\t\t{call}{MARK}")
+            return i + 1
+
+    raise SystemExit(f"could not locate a line matching {pattern!r}")
+
+
 def insert_before_closing_brace(lines, brace_index, call):
     """Insert a call as the last statement of a function body."""
     depth = 0
@@ -259,6 +276,18 @@ def main():
         player, r"if\s*\(\s*cardIndex\s*!=\s*-1\s*\)",
         "WT_OnGwentCardAdded( cardIndex );", start=brace)
     report.append(("playerWitcher.ws", "AddGwentCard", at + 1))
+
+    # --- playerWitcher.ws : a heartbeat, every time meditation begins --------
+    #
+    # Not a signal about anything: a re-read taken at a moment that happens
+    # often and happens between things. Anchored on the last statement of the
+    # successful path, after GotoState and the heading, because the body ends in
+    # `return true` and anything appended past that never runs.
+    brace = find_function(player, r"function\s+Meditate\s*\(\s*\)")
+    at = insert_after_line(
+        player, r"medState\.SetMeditationPointHeading\(\s*GetHeading\(\s*\)\s*\);",
+        "WT_OnMeditation();", start=brace)
+    report.append(("playerWitcher.ws", "Meditate", at + 1))
 
     write(OUT / "player/playerWitcher.ws", player)
 
