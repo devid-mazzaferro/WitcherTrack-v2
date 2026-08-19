@@ -47,6 +47,7 @@ public static class SelfTest
         Check(failures, "The in-game-time clock recognises every known game build", GameBuildsAreDetected);
         Check(failures, "In-game time excludes loading screens and unreadable intervals", InGameTimeExcludesLoading);
         Check(failures, "A paused in-game clock keeps its total", InGameTimeSurvivesAPause);
+        Check(failures, "Pausing and resuming the in-game clock is recorded with the real time", IgtControlsAreRecorded);
 
         Console.WriteLine();
 
@@ -715,6 +716,54 @@ public static class SelfTest
         AssertEqual(TimeSpan.Zero, accumulator.Elapsed, "the total after a reset");
     }
 
+    private static void IgtControlsAreRecorded()
+    {
+        var state = new TrackerState();
+        DateTimeOffset before = DateTimeOffset.UtcNow;
+
+        // The console line is half of what this is for, so it is checked rather than
+        // spilled into the report: a validator reading a session's output has to be able
+        // to see the pause without the run file in front of them.
+        TextWriter console = Console.Out;
+        var written = new StringWriter();
+
+        try
+        {
+            Console.SetOut(written);
+            state.NoteIgtControl(IgtControl.Started, TimeSpan.Zero);
+            state.NoteIgtControl(IgtControl.Paused, TimeSpan.FromMinutes(62));
+            state.NoteIgtControl(IgtControl.Started, TimeSpan.FromMinutes(62));
+        }
+        finally
+        {
+            Console.SetOut(console);
+        }
+
+        string log = written.ToString();
+        AssertTrue(log.Contains("in-game timer paused at 1:02:00"), "the console says what was paused and where");
+        AssertTrue(log.Contains("in-game timer started at 1:02:00"), "the console says where it resumed from");
+
+        IReadOnlyList<IgtControlEvent> controls = state.Timeline().IgtControls;
+        AssertEqual(3, controls.Count, "the acts recorded");
+        AssertEqual(IgtControl.Paused, controls[1].Action, "the second act");
+        AssertEqual(3720d, controls[1].ElapsedSeconds, "the total at the pause");
+
+        // Real time, moving forwards. The gap between a pause and the start after it is
+        // the whole point: it is how long the run was not being played.
+        AssertTrue(controls[0].At >= before, "the first act is stamped with a real instant");
+        AssertTrue(controls[2].At >= controls[1].At, "the acts are in order");
+
+        // A pause taken last night has to still be there this morning.
+        var resumed = new TrackerState();
+        resumed.Restore(state.Capture());
+        AssertEqual(3, resumed.Timeline().IgtControls.Count, "the acts survive being stored and read back");
+
+        // A new run gets a clean record, because the pauses of the old one were not this
+        // run's pauses.
+        resumed.Reset();
+        AssertEqual(0, resumed.Timeline().IgtControls.Count, "resetting the run clears the record");
+    }
+
     // ------------------------------------------------------------------ fixture
 
     private static DateTimeOffset Now => DateTimeOffset.UnixEpoch;
@@ -761,6 +810,14 @@ public static class SelfTest
         {
             Console.WriteLine($"  FAIL  {name}: {exception.Message}");
             failures.Add($"{name}: {exception.Message}");
+        }
+    }
+
+    private static void AssertTrue(bool condition, string what)
+    {
+        if (!condition)
+        {
+            throw new InvalidOperationException($"expected {what}");
         }
     }
 
