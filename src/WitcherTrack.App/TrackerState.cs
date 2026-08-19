@@ -118,7 +118,16 @@ internal sealed class TrackerState
     /// is Windows-only and this one is not - keeping the dependency out of this class is
     /// what lets the rest of the tracker stay platform-agnostic.
     /// </remarks>
-    public readonly record struct IgtSample(bool Active, TimeSpan? Elapsed, string? Detail);
+    /// <param name="Active">Whether the clock is attached and accumulating.</param>
+    /// <param name="Elapsed">
+    /// The running total, which outlives a pause: stopping the clock keeps it, so the
+    /// interface can go on showing where the run stands rather than blanking.
+    /// </param>
+    /// <param name="Loading">
+    /// True while the game is on a loading screen, null when unknown. Published so that a
+    /// display refreshing on its own can hold still instead of counting through a load.
+    /// </param>
+    public readonly record struct IgtSample(bool Active, TimeSpan? Elapsed, string? Detail, bool? Loading = null);
 
     /// <summary>
     /// Supplies the current <see cref="IgtSample"/>, if in-game-time tracking is wired up at
@@ -599,7 +608,10 @@ internal sealed class TrackerState
                 new Dictionary<string, CompletionState>(_baseResolved, StringComparer.Ordinal),
                 new Dictionary<string, PlayerPlace>(_finishedAt, StringComparer.Ordinal),
                 [.. _completionOrder],
-                [.. _overrides.Values]);
+                [.. _overrides.Values],
+                // Taken from the clock rather than held here, so there is one owner of the
+                // total and no chance of the file and the clock disagreeing.
+                IgtSource?.Invoke().Elapsed?.TotalSeconds ?? 0d);
         }
     }
 
@@ -723,7 +735,7 @@ internal sealed class TrackerState
             return new StateResponse(
                 DateTimeOffset.UtcNow, modes, Catalog.Count, states.Count,
                 _activeModeId, recent, _runStartedAt, _unlocks.Count,
-                igt?.Active ?? false, igt?.Detail, igt?.Elapsed?.TotalSeconds);
+                igt?.Active ?? false, igt?.Detail, igt?.Elapsed?.TotalSeconds, igt?.Loading);
         }
     }
 
@@ -878,6 +890,18 @@ internal sealed class TrackerState
     /// <c>replay</c> and the self-tests pay none of this.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Pushes the current state to every subscriber, for something that changed without
+    /// being recorded.
+    /// </summary>
+    /// <remarks>
+    /// Starting or pausing the in-game clock leaves no trace in the event log, so the
+    /// ordinary path - a record arrives, the state goes out - never fires for it. Every
+    /// open dashboard was therefore left showing a clock that had already stopped, with
+    /// nothing to correct it until something unrelated happened to complete.
+    /// </remarks>
+    public void PublishNow() => Publish();
+
     private void Publish()
     {
         lock (_gate)
