@@ -63,7 +63,10 @@ available then; a full session since has shown it updates when it first goes act
 then not again. `AddGwentCard` is where the game itself decides a
 card is being added, so there is nowhere earlier to look.
 
-It is also the only hook where the value is trusted rather than swept. 
+It is also the only hook where the value is trusted rather than swept - the card's, that
+is. The map pins are swept here as they are from every other live hook: a card is often the
+last thing picked up at a place that has just been cleared, and without that sweep nothing
+asked the game whether the pin had gone out.
 
 ---
 
@@ -128,7 +131,7 @@ above ever ran. The buff is what gives it away; the game names them per sign
 | Hook | Effect |
 |---|---|
 | `OnSpawned` | full snapshot on every load, so reloads resynchronise the run |
-| `AddGwentCard` | a Gwent card the moment it enters the collection |
+| `AddGwentCard` | a Gwent card the moment it enters the collection, plus a map-pin sweep |
 | `AddQuestUpdate` | quest status the instant the journal changes |
 | `AddCraftingSchematicUpdate` | diagram learned, by internal name |
 | `AddAlchemySchematicUpdate` | formula learned, by internal name |
