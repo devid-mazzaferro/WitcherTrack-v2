@@ -1,0 +1,108 @@
+# Builds the downloadable release.
+#
+# Native AOT cannot cross-compile between operating systems, so the Windows binary is
+# produced on a Windows runner. The result is a single .exe with no .NET runtime to
+# install and no side-by-side DLLs.
+#
+# Building in CI rather than on a maintainer's machine also means the published binary
+# is traceable to an exact commit, which matters for a tool people are asked to trust
+# enough to run alongside their game.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Verify the completion rules
+        run: dotnet run --project src/WitcherTrack.App -- selftest
+
+      - name: Publish (Native AOT, single file)
+        run: >
+          dotnet publish src/WitcherTrack.App
+          -c Release
+          -r win-x64
+          -p:PublishAot=true
+          -p:InvariantGlobalization=true
+          -p:StripSymbols=true
+          -o publish
+
+      # The reporter is zipped from what is committed, not regenerated here: patching
+      # needs the game's own vanilla scripts, which are not in this repository and cannot
+      # be in a CI runner either. Regenerating it is a maintainer step, run locally with
+      #   python mod/patch_mod.py --scripts <game>/content/content0/scripts
+      # and committed - so what ships is exactly what was reviewed.
+      - name: Package the in-game reporter
+        shell: pwsh
+        run: Compress-Archive -Path mod/modWitcherTrack -DestinationPath modWitcherTrack.zip
+
+      # Laid out the way README.md documents it: the executable, a data folder beside
+      # it, and the reporter as its own zip to drop into the game's Mods folder. The
+      # map artwork is part of this - without it the map view draws points on nothing.
+      - name: Assemble the download
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path bundle/data/map -Force | Out-Null
+          Copy-Item publish/WitcherTrack.exe bundle/
+          Copy-Item publish/catalog.json     bundle/data/
+          Copy-Item publish/map/*            bundle/data/map/
+          Copy-Item INSTALL.md               bundle/
+          Copy-Item modWitcherTrack.zip      bundle/
+          Get-ChildItem bundle -Recurse -File | Select-Object FullName, Length
+          Compress-Archive -Path bundle/* -DestinationPath WitcherTrack-win-x64.zip
+
+      # A release that cannot find its own data is the failure this catches: the layout
+      # above is a copy of a copy, and nothing else checks it before a user does.
+      - name: Check the bundle runs and finds everything
+        shell: pwsh
+        working-directory: bundle
+        run: |
+          $out = ./WitcherTrack.exe selftest
+          $out
+          if ($LASTEXITCODE -ne 0) { throw "selftest failed in the assembled bundle" }
+          if (-not (Test-Path data/catalog.json))      { throw "catalog.json missing from the bundle" }
+          if (-not (Test-Path data/map/velen.webp))    { throw "map artwork missing from the bundle" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WitcherTrack-win-x64
+          path: WitcherTrack-win-x64.zip
+
+      # Both the bundle and the bare .exe are attached: the zip is what a first-time user
+      # wants, the loose executable is what someone updating an existing install wants.
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          # Every 0.x tag is published as a pre-release. What is incomplete is the data,
+          # not the build, and the releases page is the only place a reader can see that
+          # distinction before downloading.
+          prerelease: ${{ startsWith(github.ref_name, 'v0.') }}
+          body: |
+            **Diagrams and formulae carry no content pack yet.** The game reports one for
+            quests and nothing for schematics, so every diagram and formula is filed under
+            the base game. `all300` counts all of them and is complete; `hos100` and
+            `baw100` count none of them, and `base100` may count some that belong to an
+            expansion. Quests, points of interest and Gwent cards are unaffected.
+
+            `WitcherTrack-win-x64.zip` is the whole download: the executable, its data
+            folder, and the reporter to unzip into the game's Mods folder. The bare
+            `WitcherTrack.exe` is for updating an install that already has both.
+          files: |
+            WitcherTrack-win-x64.zip
+            publish/WitcherTrack.exe
+          generate_release_notes: true

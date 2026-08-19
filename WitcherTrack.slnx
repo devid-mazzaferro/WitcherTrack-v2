@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WitcherTrack.App/WitcherTrack.App.csproj" />
+    <Project Path="src/WitcherTrack.Core/WitcherTrack.Core.csproj" />
+    <Project Path="src/WitcherTrack.SaveFormat/WitcherTrack.SaveFormat.csproj" />
+  </Folder>
+</Solution>
