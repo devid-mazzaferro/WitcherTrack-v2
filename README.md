@@ -340,6 +340,11 @@ is attached, the button reads the game's loading flag once a second and shows `Â
 whenever the game is on a loading screen, which is also the quickest way to confirm it
 attached to the right build.
 
+Every start, pause and reset is recorded with the real time it happened at: printed to the
+console as it happens and kept with the run, where `/api/timeline` and `run.json` both show
+it. Speedrun rules require a single unbroken session, so a timer that can be paused is only
+worth anything if the pause is on the record.
+
 The run is saved to `run.json` beside the executable a couple of seconds after anything
 changes, and resumed automatically next time. Back it up by copying that one file; move a
 run to another machine the same way.
