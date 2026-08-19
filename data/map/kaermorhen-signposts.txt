@@ -1,0 +1,5 @@
+lakesideHut|82.109|65.656
+ironMine|47.922|55.547
+kaerMorhen|61.172|58.734
+bastion|62.531|43.719
+ruinedWatchtower|116.625|58.813

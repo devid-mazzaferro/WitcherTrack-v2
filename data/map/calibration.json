@@ -1,0 +1,2711 @@
+{
+  "velen": {
+    "world": "novigrad.w2w",
+    "projection": "linear",
+    "matrix": [
+      [
+        2.6680927329407638e-05,
+        0.05943243465610313
+      ],
+      [
+        0.059432434656103136,
+        -2.668092732938536e-05
+      ],
+      [
+        95.73004101791912,
+        63.73492206028611
+      ]
+    ],
+    "model": "similarity",
+    "controlPoints": 82,
+    "ambiguousNamesSkipped": [
+      "crossroads"
+    ],
+    "residual": {
+      "mean": 0.3967825671088145,
+      "median": 0.3566222620404019,
+      "p95": 0.8386086541738512,
+      "max": 1.1136832624318098,
+      "meanMetres": 6.676195067921385
+    },
+    "anisotropy": 1.0013331516323338,
+    "anisotropyReliable": true,
+    "leaveOneOut": {
+      "mean": 0.4069961598426738,
+      "max": 1.1435488235704747,
+      "meanMetres": 6.848047218413796
+    },
+    "metresPerMapUnit": 16.82582759763861,
+    "trusted": true,
+    "points": [
+      {
+        "name": "Abandoned Tower",
+        "id": "cp_abandoned_tower",
+        "world": [
+          -244.821,
+          560.149
+        ],
+        "map": [
+          128.688,
+          49.313
+        ],
+        "plane": [
+          128.688,
+          49.313
+        ]
+      },
+      {
+        "name": "Aeramas' Abandoned Manor",
+        "id": "demolished_mansion",
+        "world": [
+          2389.93,
+          997.581
+        ],
+        "map": [
+          155.203,
+          206.688
+        ],
+        "plane": [
+          155.203,
+          206.688
+        ]
+      },
+      {
+        "name": "Alness",
+        "id": "gustfields_farmstead",
+        "world": [
+          1579.31,
+          1849.41
+        ],
+        "map": [
+          205.438,
+          157.313
+        ],
+        "plane": [
+          205.438,
+          157.313
+        ]
+      },
+      {
+        "name": "Ancient Oak",
+        "id": "incredibly_big_tree",
+        "world": [
+          1600.32,
+          -677.778
+        ],
+        "map": [
+          55.734,
+          159.281
+        ],
+        "plane": [
+          55.734,
+          159.281
+        ]
+      },
+      {
+        "name": "Arette",
+        "id": "retting_ponds",
+        "world": [
+          970.902,
+          1948.03
+        ],
+        "map": [
+          211.828,
+          121.703
+        ],
+        "plane": [
+          211.828,
+          121.703
+        ]
+      },
+      {
+        "name": "Bandits' Camp",
+        "id": "mire_slaver_camp",
+        "world": [
+          660.247,
+          -408.436
+        ],
+        "map": [
+          71.516,
+          103.234
+        ],
+        "plane": [
+          71.516,
+          103.234
+        ]
+      },
+      {
+        "name": "Benek",
+        "id": "benek_village",
+        "world": [
+          1883,
+          -156.111
+        ],
+        "map": [
+          86.313,
+          175.969
+        ],
+        "plane": [
+          86.313,
+          175.969
+        ]
+      },
+      {
+        "name": "Blackbough",
+        "id": "snots_village",
+        "world": [
+          -163.227,
+          193.988
+        ],
+        "map": [
+          107.016,
+          54.078
+        ],
+        "plane": [
+          107.016,
+          54.078
+        ]
+      },
+      {
+        "name": "Border Post",
+        "id": "halver_isle",
+        "world": [
+          752.678,
+          1020.59
+        ],
+        "map": [
+          156.516,
+          108.625
+        ],
+        "plane": [
+          156.516,
+          108.625
+        ]
+      },
+      {
+        "name": "Byways",
+        "id": "mire_brickmakers",
+        "world": [
+          -275.635,
+          -953.008
+        ],
+        "map": [
+          39.219,
+          47.703
+        ],
+        "plane": [
+          39.219,
+          47.703
+        ]
+      },
+      {
+        "name": "Carsten",
+        "id": "gustfields_windmill_village",
+        "world": [
+          1547.72,
+          1497.34
+        ],
+        "map": [
+          184.719,
+          155.609
+        ],
+        "plane": [
+          184.719,
+          155.609
+        ]
+      },
+      {
+        "name": "Cavern",
+        "id": "smugglers_den",
+        "world": [
+          701.85,
+          2336.55
+        ],
+        "map": [
+          234.469,
+          105.234
+        ],
+        "plane": [
+          234.469,
+          105.234
+        ]
+      },
+      {
+        "name": "Claywich",
+        "id": "glinsk_village",
+        "world": [
+          113.089,
+          -224.605
+        ],
+        "map": [
+          82.281,
+          70.359
+        ],
+        "plane": [
+          82.281,
+          70.359
+        ]
+      },
+      {
+        "name": "Codgers' Quarry",
+        "id": "stray_kings_quarry",
+        "world": [
+          1216.98,
+          886.447
+        ],
+        "map": [
+          148.453,
+          136.422
+        ],
+        "plane": [
+          148.453,
+          136.422
+        ]
+      },
+      {
+        "name": "Condyle",
+        "id": "massacred_village",
+        "world": [
+          -693.965,
+          -464.597
+        ],
+        "map": [
+          68.141,
+          22.922
+        ],
+        "plane": [
+          68.141,
+          22.922
+        ]
+      },
+      {
+        "name": "Crow's Perch",
+        "id": "barons_yard",
+        "world": [
+          183.613,
+          17.6434
+        ],
+        "map": [
+          97.219,
+          74.875
+        ],
+        "plane": [
+          97.219,
+          74.875
+        ]
+      },
+      {
+        "name": "Cunny of the Goose",
+        "id": "goose_cunt_inn",
+        "world": [
+          913.646,
+          1483.14
+        ],
+        "map": [
+          184.484,
+          117.922
+        ],
+        "plane": [
+          184.484,
+          117.922
+        ]
+      },
+      {
+        "name": "Dancing Windmill",
+        "id": "gustfields_windmill",
+        "world": [
+          1527.83,
+          2003.4
+        ],
+        "map": [
+          215.406,
+          154.203
+        ],
+        "plane": [
+          215.406,
+          154.203
+        ]
+      },
+      {
+        "name": "Destroyed Bastion",
+        "id": "baldenfort_bastion",
+        "world": [
+          1439.91,
+          -1193.59
+        ],
+        "map": [
+          25.0,
+          149.563
+        ],
+        "plane": [
+          25.0,
+          149.563
+        ]
+      },
+      {
+        "name": "Devil's Pit",
+        "id": "plague_pit",
+        "world": [
+          1163.32,
+          603.974
+        ],
+        "map": [
+          131.859,
+          131.781
+        ],
+        "plane": [
+          131.859,
+          131.781
+        ]
+      },
+      {
+        "name": "Dragonslayer's Grotto",
+        "id": "griffin_dungeon_exit",
+        "world": [
+          1211.77,
+          -235.733
+        ],
+        "map": [
+          82.016,
+          135.516
+        ],
+        "plane": [
+          82.016,
+          135.516
+        ]
+      },
+      {
+        "name": "Drahim Castle",
+        "id": "noonwraith_tower",
+        "world": [
+          730.289,
+          1392.8
+        ],
+        "map": [
+          179.016,
+          106.938
+        ],
+        "plane": [
+          179.016,
+          106.938
+        ]
+      },
+      {
+        "name": "Drudge",
+        "id": "mire_deserted_village",
+        "world": [
+          602.572,
+          -631.746
+        ],
+        "map": [
+          58.672,
+          99.766
+        ],
+        "plane": [
+          58.672,
+          99.766
+        ]
+      },
+      {
+        "name": "Electors' Square",
+        "id": "temple_isle_round_square",
+        "world": [
+          467.269,
+          2190.41
+        ],
+        "map": [
+          226.313,
+          91.547
+        ],
+        "plane": [
+          226.313,
+          91.547
+        ]
+      },
+      {
+        "name": "Est Tayiar",
+        "id": "philippa_ruins",
+        "world": [
+          2106.84,
+          1458.13
+        ],
+        "map": [
+          181.391,
+          189.266
+        ],
+        "plane": [
+          181.391,
+          189.266
+        ]
+      },
+      {
+        "name": "Ferry Station",
+        "id": "bayors_ferry_station",
+        "world": [
+          1839.84,
+          497.489
+        ],
+        "map": [
+          125.281,
+          173.141
+        ],
+        "plane": [
+          125.281,
+          173.141
+        ]
+      },
+      {
+        "name": "Forest Hut",
+        "id": "sb_forest_house",
+        "world": [
+          -434.774,
+          -85.1209
+        ],
+        "map": [
+          91.438,
+          37.625
+        ],
+        "plane": [
+          91.438,
+          37.625
+        ]
+      },
+      {
+        "name": "Frischlow",
+        "id": "mudwell",
+        "world": [
+          243.544,
+          -1175.38
+        ],
+        "map": [
+          25.406,
+          78.266
+        ],
+        "plane": [
+          25.406,
+          78.266
+        ]
+      },
+      {
+        "name": "Gate of the Hierarch",
+        "id": "novigrad_southeast_gate_1",
+        "world": [
+          748.095,
+          1699.48
+        ],
+        "map": [
+          196.563,
+          108.094
+        ],
+        "plane": [
+          196.563,
+          108.094
+        ]
+      },
+      {
+        "name": "Glory Gate",
+        "id": "novigrad_south_gate_2",
+        "world": [
+          655.437,
+          1611.46
+        ],
+        "map": [
+          191.688,
+          102.781
+        ],
+        "plane": [
+          191.688,
+          102.781
+        ]
+      },
+      {
+        "name": "Grotto",
+        "id": "Dungeon 5",
+        "world": [
+          1939.64,
+          249.936
+        ],
+        "map": [
+          111.234,
+          178.766
+        ],
+        "plane": [
+          111.234,
+          178.766
+        ]
+      },
+      {
+        "name": "Gustfields Farm",
+        "id": "gustfields_grainfields",
+        "world": [
+          1708.57,
+          1223.12
+        ],
+        "map": [
+          168.969,
+          165.375
+        ],
+        "plane": [
+          168.969,
+          165.375
+        ]
+      },
+      {
+        "name": "Hanged Man's Tree",
+        "id": "nml_hangman_tree",
+        "world": [
+          973.793,
+          715.046
+        ],
+        "map": [
+          137.906,
+          121.516
+        ],
+        "plane": [
+          137.906,
+          121.516
+        ]
+      },
+      {
+        "name": "Harpy Feeding Ground",
+        "id": "wagon_top",
+        "world": [
+          -192.609,
+          814.154
+        ],
+        "map": [
+          143.859,
+          52.156
+        ],
+        "plane": [
+          143.859,
+          52.156
+        ]
+      },
+      {
+        "name": "Heatherton",
+        "id": "heatherton_village",
+        "world": [
+          -100.116,
+          530.245
+        ],
+        "map": [
+          126.828,
+          57.891
+        ],
+        "plane": [
+          126.828,
+          57.891
+        ]
+      },
+      {
+        "name": "Herbalist's Hut",
+        "id": "gustfields_herbalist",
+        "world": [
+          1925.96,
+          1225.84
+        ],
+        "map": [
+          168.672,
+          178.078
+        ],
+        "plane": [
+          168.672,
+          178.078
+        ]
+      },
+      {
+        "name": "Hierarch Square",
+        "id": "triss_house",
+        "world": [
+          671.864,
+          1876.25
+        ],
+        "map": [
+          207.375,
+          103.75
+        ],
+        "plane": [
+          207.375,
+          103.75
+        ]
+      },
+      {
+        "name": "Hindhold",
+        "id": "fort_mar",
+        "world": [
+          1055.76,
+          1067.92
+        ],
+        "map": [
+          158.813,
+          126.328
+        ],
+        "plane": [
+          158.813,
+          126.328
+        ]
+      },
+      {
+        "name": "Honeyfill Meadworks",
+        "id": "noblemans_estate",
+        "world": [
+          1299.4,
+          1994.06
+        ],
+        "map": [
+          214.219,
+          140.781
+        ],
+        "plane": [
+          214.219,
+          140.781
+        ]
+      },
+      {
+        "name": "House of Respite",
+        "id": "fortfified_farmstead",
+        "world": [
+          2261.95,
+          -829.092
+        ],
+        "map": [
+          46.219,
+          198.172
+        ],
+        "plane": [
+          46.219,
+          198.172
+        ]
+      },
+      {
+        "name": "Inn at the Crossroads",
+        "id": "crossroads_inn",
+        "world": [
+          515.102,
+          552.532
+        ],
+        "map": [
+          128.797,
+          94.375
+        ],
+        "plane": [
+          128.797,
+          94.375
+        ]
+      },
+      {
+        "name": "Isolated Hut",
+        "id": "midget_forgers",
+        "world": [
+          1444.49,
+          2380.05
+        ],
+        "map": [
+          237.031,
+          149.219
+        ],
+        "plane": [
+          237.031,
+          149.219
+        ]
+      },
+      {
+        "name": "Isolated Shack",
+        "id": "seaside_shack",
+        "world": [
+          -377.163,
+          579.676
+        ],
+        "map": [
+          129.781,
+          40.859
+        ],
+        "plane": [
+          129.781,
+          40.859
+        ]
+      },
+      {
+        "name": "Kimbolt Way",
+        "id": "swamp_edge",
+        "world": [
+          2062.16,
+          -610.027
+        ],
+        "map": [
+          59.203,
+          186.266
+        ],
+        "plane": [
+          59.203,
+          186.266
+        ]
+      },
+      {
+        "name": "Lighthouse",
+        "id": "grassy_knoll_lighthouse",
+        "world": [
+          61.2436,
+          1628.16
+        ],
+        "map": [
+          192.875,
+          67.359
+        ],
+        "plane": [
+          192.875,
+          67.359
+        ]
+      },
+      {
+        "name": "Lindenvale",
+        "id": "midcopse",
+        "world": [
+          772.17,
+          68.9069
+        ],
+        "map": [
+          99.906,
+          109.5
+        ],
+        "plane": [
+          99.906,
+          109.5
+        ]
+      },
+      {
+        "name": "Loggers' Hut",
+        "id": "dwarven_woodchucks",
+        "world": [
+          295.892,
+          1638.07
+        ],
+        "map": [
+          193.328,
+          81.5
+        ],
+        "plane": [
+          193.328,
+          81.5
+        ]
+      },
+      {
+        "name": "Lornruk",
+        "id": "reef_fort",
+        "world": [
+          -283.569,
+          926.196
+        ],
+        "map": [
+          150.906,
+          46.625
+        ],
+        "plane": [
+          150.906,
+          46.625
+        ]
+      },
+      {
+        "name": "Lucian's Windmill",
+        "id": "lucjans_windmill",
+        "world": [
+          417.445,
+          1456.71
+        ],
+        "map": [
+          182.469,
+          88.563
+        ],
+        "plane": [
+          182.469,
+          88.563
+        ]
+      },
+      {
+        "name": "Lurtch",
+        "id": "lanka_village",
+        "world": [
+          1215.29,
+          113.283
+        ],
+        "map": [
+          101.938,
+          136.266
+        ],
+        "plane": [
+          101.938,
+          136.266
+        ]
+      },
+      {
+        "name": "Martin Feuille's Farmstead",
+        "id": "plantation_estate",
+        "world": [
+          1858.96,
+          2140.56
+        ],
+        "map": [
+          223.516,
+          174.375
+        ],
+        "plane": [
+          223.516,
+          174.375
+        ]
+      },
+      {
+        "name": "Midcopse",
+        "id": "mouth_village",
+        "world": [
+          -349.472,
+          -231.727
+        ],
+        "map": [
+          82.688,
+          42.859
+        ],
+        "plane": [
+          82.688,
+          42.859
+        ]
+      },
+      {
+        "name": "Moldavie Residence",
+        "id": "vacant_estate",
+        "world": [
+          1451.81,
+          2190.73
+        ],
+        "map": [
+          225.672,
+          149.938
+        ],
+        "plane": [
+          225.672,
+          149.938
+        ]
+      },
+      {
+        "name": "Mulbrydale",
+        "id": "poppystone",
+        "world": [
+          901.279,
+          566.181
+        ],
+        "map": [
+          129.016,
+          116.984
+        ],
+        "plane": [
+          129.016,
+          116.984
+        ]
+      },
+      {
+        "name": "Nilfgaardian Army Group 'Center' Camp",
+        "id": "novigrad_garrison",
+        "world": [
+          2414.37,
+          -976.575
+        ],
+        "map": [
+          37.828,
+          206.734
+        ],
+        "plane": [
+          37.828,
+          206.734
+        ]
+      },
+      {
+        "name": "Novigrad Gate",
+        "id": "oxenfurt_east",
+        "world": [
+          1823.57,
+          1035
+        ],
+        "map": [
+          157.484,
+          172.031
+        ],
+        "plane": [
+          157.484,
+          172.031
+        ]
+      },
+      {
+        "name": "Olena's Grove",
+        "id": "willows_grove",
+        "world": [
+          585.902,
+          -1038.38
+        ],
+        "map": [
+          33.813,
+          98.703
+        ],
+        "plane": [
+          33.813,
+          98.703
+        ]
+      },
+      {
+        "name": "Oreton",
+        "id": "rudnik",
+        "world": [
+          196.91,
+          -452.574
+        ],
+        "map": [
+          69.109,
+          75.0
+        ],
+        "plane": [
+          69.109,
+          75.0
+        ]
+      },
+      {
+        "name": "Oxenfurt Gate",
+        "id": "novigrad_east_gate_2",
+        "world": [
+          884.802,
+          1999.59
+        ],
+        "map": [
+          214.813,
+          116.297
+        ],
+        "plane": [
+          214.813,
+          116.297
+        ]
+      },
+      {
+        "name": "Portside Gate",
+        "id": "novigrad_shouth_gate_1",
+        "world": [
+          552.427,
+          1603.23
+        ],
+        "map": [
+          191.25,
+          96.672
+        ],
+        "plane": [
+          191.25,
+          96.672
+        ]
+      },
+      {
+        "name": "Reardon Manor",
+        "id": "descent_hunting_lodge",
+        "world": [
+          1435.71,
+          -119.927
+        ],
+        "map": [
+          88.328,
+          149.813
+        ],
+        "plane": [
+          88.328,
+          149.813
+        ]
+      },
+      {
+        "name": "Refugees' Camp",
+        "id": "doomsday_worshippers",
+        "world": [
+          -601.032,
+          -153.815
+        ],
+        "map": [
+          86.516,
+          27.609
+        ],
+        "plane": [
+          86.516,
+          27.609
+        ]
+      },
+      {
+        "name": "Road to Bald Mountain",
+        "id": "bald_mountain",
+        "world": [
+          961.467,
+          -1068.35
+        ],
+        "map": [
+          32.125,
+          120.547
+        ],
+        "plane": [
+          32.125,
+          120.547
+        ]
+      },
+      {
+        "name": "Ruined Tower",
+        "id": "cb_swamp_ruins",
+        "world": [
+          1520.54,
+          -496.124
+        ],
+        "map": [
+          66.625,
+          154.531
+        ],
+        "plane": [
+          66.625,
+          154.531
+        ]
+      },
+      {
+        "name": "Sarrasin Grange",
+        "id": "gustfields_vinyards",
+        "world": [
+          972.125,
+          2525.83
+        ],
+        "map": [
+          245.109,
+          121.094
+        ],
+        "plane": [
+          245.109,
+          121.094
+        ]
+      },
+      {
+        "name": "Southern Gate",
+        "id": "novigrad_east_gate_1",
+        "world": [
+          889.863,
+          1896.82
+        ],
+        "map": [
+          208.766,
+          116.672
+        ],
+        "plane": [
+          208.766,
+          116.672
+        ]
+      },
+      {
+        "name": "St. Gregory's Bridge",
+        "id": "temple_bridge_south",
+        "world": [
+          643.803,
+          2064.91
+        ],
+        "map": [
+          218.563,
+          102.031
+        ],
+        "plane": [
+          218.563,
+          102.031
+        ]
+      },
+      {
+        "name": "Stonecutters' Settlement",
+        "id": "freckle_hill",
+        "world": [
+          1391.32,
+          727.346
+        ],
+        "map": [
+          139.359,
+          146.203
+        ],
+        "plane": [
+          139.359,
+          146.203
+        ]
+      },
+      {
+        "name": "Temerian Partisan Hideout",
+        "id": "roches_camp",
+        "world": [
+          1873.63,
+          1411.08
+        ],
+        "map": [
+          179.703,
+          174.922
+        ],
+        "plane": [
+          179.703,
+          174.922
+        ]
+      },
+      {
+        "name": "The Orphans of Crookback Bog",
+        "id": "ladies_of_the_wood",
+        "world": [
+          1346.68,
+          -547.768
+        ],
+        "map": [
+          62.953,
+          143.797
+        ],
+        "plane": [
+          62.953,
+          143.797
+        ]
+      },
+      {
+        "name": "Toderas",
+        "id": "toderas_village",
+        "world": [
+          1697.7,
+          81.3701
+        ],
+        "map": [
+          100.563,
+          164.641
+        ],
+        "plane": [
+          100.563,
+          164.641
+        ]
+      },
+      {
+        "name": "Tretogor Gate",
+        "id": "nov_main_gate",
+        "world": [
+          805.746,
+          1779.91
+        ],
+        "map": [
+          201.391,
+          111.484
+        ],
+        "plane": [
+          201.391,
+          111.484
+        ]
+      },
+      {
+        "name": "Troll Bridge",
+        "id": "old_bridge",
+        "world": [
+          -31.953,
+          -101.417
+        ],
+        "map": [
+          89.984,
+          61.938
+        ],
+        "plane": [
+          89.984,
+          61.938
+        ]
+      },
+      {
+        "name": "Vegelbud Residence",
+        "id": "dawn_estate_entrance",
+        "world": [
+          1640.14,
+          1589.26
+        ],
+        "map": [
+          189.813,
+          161.063
+        ],
+        "plane": [
+          189.813,
+          161.063
+        ]
+      },
+      {
+        "name": "Wastrel Manor",
+        "id": "haunted_estate",
+        "world": [
+          -94.0064,
+          -290.836
+        ],
+        "map": [
+          78.109,
+          57.844
+        ],
+        "plane": [
+          78.109,
+          57.844
+        ]
+      },
+      {
+        "name": "Western Gate",
+        "id": "oxenfurt_west",
+        "world": [
+          1706.57,
+          903.218
+        ],
+        "map": [
+          149.547,
+          165.094
+        ],
+        "plane": [
+          149.547,
+          165.094
+        ]
+      },
+      {
+        "name": "Wheat Fields",
+        "id": "cropfields",
+        "world": [
+          1454.05,
+          1663.3
+        ],
+        "map": [
+          194.0,
+          149.969
+        ],
+        "plane": [
+          194.0,
+          149.969
+        ]
+      },
+      {
+        "name": "White Eagle Fort",
+        "id": "debris_fort",
+        "world": [
+          1490.03,
+          1008.01
+        ],
+        "map": [
+          155.391,
+          152.375
+        ],
+        "plane": [
+          155.391,
+          152.375
+        ]
+      },
+      {
+        "name": "Widows' Grotto",
+        "id": "widow_cave",
+        "world": [
+          211.238,
+          1320.2
+        ],
+        "map": [
+          173.828,
+          76.719
+        ],
+        "plane": [
+          173.828,
+          76.719
+        ]
+      },
+      {
+        "name": "Winespring Grange",
+        "id": "gustfields_vinyard_farmstead",
+        "world": [
+          1673.78,
+          2283.71
+        ],
+        "map": [
+          231.734,
+          162.984
+        ],
+        "plane": [
+          231.734,
+          162.984
+        ]
+      },
+      {
+        "name": "Wolven Glade",
+        "id": "sacred_circle",
+        "world": [
+          70.3588,
+          382.082
+        ],
+        "map": [
+          118.281,
+          68.047
+        ],
+        "plane": [
+          118.281,
+          68.047
+        ]
+      },
+      {
+        "name": "Yantra",
+        "id": "Slone_village",
+        "world": [
+          1129.97,
+          2374.9
+        ],
+        "map": [
+          236.125,
+          130.438
+        ],
+        "plane": [
+          236.125,
+          130.438
+        ]
+      }
+    ]
+  },
+  "skellige": {
+    "world": "skellige.w2w",
+    "projection": "mercator",
+    "matrix": [
+      [
+        2.4505323072037977e-05,
+        0.0481503365384802
+      ],
+      [
+        0.04815033653848021,
+        -2.450532307202005e-05
+      ],
+      [
+        -33.71863524737434,
+        -33.62310835956133
+      ]
+    ],
+    "model": "similarity",
+    "controlPoints": 42,
+    "ambiguousNamesSkipped": [],
+    "residual": {
+      "mean": 0.3334560668562191,
+      "median": 0.26476513302937793,
+      "p95": 0.6396886819087704,
+      "max": 1.2389964932877062,
+      "meanMetres": 6.925310343468679
+    },
+    "anisotropy": 1.002714532979947,
+    "anisotropyReliable": true,
+    "leaveOneOut": {
+      "mean": 0.3521692398738363,
+      "max": 1.3461482688357083,
+      "meanMetres": 7.313950837791737
+    },
+    "metresPerMapUnit": 20.768284136376987,
+    "trusted": true,
+    "points": [
+      {
+        "name": "Abandoned Sawmill",
+        "id": "abandoned_lumber_mill",
+        "world": [
+          845.145,
+          147.643
+        ],
+        "map": [
+          -25.642,
+          7.031
+        ],
+        "plane": [
+          -26.54349411641796,
+          7.031
+        ]
+      },
+      {
+        "name": "Abandoned Village",
+        "id": "undvik_village_2",
+        "world": [
+          -2111.07,
+          -673.369
+        ],
+        "map": [
+          -54.801,
+          -135.176
+        ],
+        "plane": [
+          -65.78667951891698,
+          -135.176
+        ]
+      },
+      {
+        "name": "Ancient Crypt",
+        "id": "elven_vault",
+        "world": [
+          240.571,
+          906.803
+        ],
+        "map": [
+          9.947,
+          -22.039
+        ],
+        "plane": [
+          9.997346427058028,
+          -22.039
+        ]
+      },
+      {
+        "name": "Bay Of Winds",
+        "id": "rocky_bay",
+        "world": [
+          1267.03,
+          1849.7
+        ],
+        "map": [
+          48.444,
+          27.51
+        ],
+        "plane": [
+          55.52523653888617,
+          27.51
+        ]
+      },
+      {
+        "name": "Blandare",
+        "id": "blandare_village",
+        "world": [
+          610.025,
+          14.2452
+        ],
+        "map": [
+          -30.827,
+          -4.219
+        ],
+        "plane": [
+          -32.431895766782155,
+          -4.219
+        ]
+      },
+      {
+        "name": "Boxholm",
+        "id": "ravens_home_ruins",
+        "world": [
+          326.634,
+          -237.752
+        ],
+        "map": [
+          -41.311,
+          -17.886
+        ],
+        "plane": [
+          -45.43968759454172,
+          -17.886
+        ]
+      },
+      {
+        "name": "Bridge to Kaer Trolde",
+        "id": "kaer_trolde_bridge",
+        "world": [
+          -98.6416,
+          746.466
+        ],
+        "map": [
+          2.636,
+          -38.65
+        ],
+        "plane": [
+          2.6369303997683615,
+          -38.65
+        ]
+      },
+      {
+        "name": "Clan Tordarroch Forge",
+        "id": "undvik_blacksmith",
+        "world": [
+          -1828.65,
+          -931.205
+        ],
+        "map": [
+          -61.365,
+          -121.553
+        ],
+        "plane": [
+          -78.24432587169808,
+          -121.553
+        ]
+      },
+      {
+        "name": "Crossroads",
+        "id": "stolen_road",
+        "world": [
+          70.855,
+          251.124
+        ],
+        "map": [
+          -21.002,
+          -30.059
+        ],
+        "plane": [
+          -21.488753237426483,
+          -30.059
+        ]
+      },
+      {
+        "name": "Dorve Ruins",
+        "id": "ice_giant_village",
+        "world": [
+          -1657.36,
+          -720.398
+        ],
+        "map": [
+          -56.377,
+          -113.533
+        ],
+        "plane": [
+          -68.5759038683332,
+          -113.533
+        ]
+      },
+      {
+        "name": "Druids' Camp",
+        "id": "druid_camp",
+        "world": [
+          997.59,
+          -3.22797
+        ],
+        "map": [
+          -32.064,
+          14.458
+        ],
+        "plane": [
+          -33.88188833591077,
+          14.458
+        ]
+      },
+      {
+        "name": "Eldberg Lighthouse",
+        "id": "northern_torch",
+        "world": [
+          -771.229,
+          407.091
+        ],
+        "map": [
+          -14.52,
+          -70.928
+        ],
+        "plane": [
+          -14.6779615856307,
+          -70.928
+        ]
+      },
+      {
+        "name": "Elverum Lighthouse",
+        "id": "southern_torch",
+        "world": [
+          567.286,
+          -1419.54
+        ],
+        "map": [
+          -70.707,
+          -6.064
+        ],
+        "plane": [
+          -101.53500204101562,
+          -6.064
+        ]
+      },
+      {
+        "name": "Fornhala",
+        "id": "halgrims_village",
+        "world": [
+          -194.304,
+          -526.116
+        ],
+        "map": [
+          -50.958,
+          -42.935
+        ],
+        "plane": [
+          -59.413385039828704,
+          -42.935
+        ]
+      },
+      {
+        "name": "Freya's Garden",
+        "id": "herbarium",
+        "world": [
+          2489.47,
+          267.981
+        ],
+        "map": [
+          -20.838,
+          86.177
+        ],
+        "plane": [
+          -21.313179313087264,
+          86.177
+        ]
+      },
+      {
+        "name": "Gedyneith",
+        "id": "holy_oak",
+        "world": [
+          1072.62,
+          226.707
+        ],
+        "map": [
+          -21.882,
+          18.215
+        ],
+        "plane": [
+          -22.434200778947773,
+          18.215
+        ]
+      },
+      {
+        "name": "Giants' Toes",
+        "id": "giants_foot",
+        "world": [
+          1009.64,
+          756.362
+        ],
+        "map": [
+          2.724,
+          15.029
+        ],
+        "plane": [
+          2.7250267632049794,
+          15.029
+        ]
+      },
+      {
+        "name": "Grotto",
+        "id": "arsehole_cave",
+        "world": [
+          1174.54,
+          -741.613
+        ],
+        "map": [
+          -56.837,
+          23.071
+        ],
+        "plane": [
+          -69.41170454185449,
+          23.071
+        ]
+      },
+      {
+        "name": "Gull Point",
+        "id": "q210_vantage_point",
+        "world": [
+          -1353.66,
+          -826.378
+        ],
+        "map": [
+          -58.984,
+          -98.899
+        ],
+        "plane": [
+          -73.45460724835706,
+          -98.899
+        ]
+      },
+      {
+        "name": "Harviken",
+        "id": "faroe_harbor",
+        "world": [
+          1751.56,
+          -1906.31
+        ],
+        "map": [
+          -77.206,
+          49.526
+        ],
+        "plane": [
+          -125.37637577011651,
+          49.526
+        ]
+      },
+      {
+        "name": "Holmstein's Port",
+        "id": "holmstein_harbor",
+        "world": [
+          -283.124,
+          -1073.01
+        ],
+        "map": [
+          -64.539,
+          -47.329
+        ],
+        "plane": [
+          -85.23194334689697,
+          -47.329
+        ]
+      },
+      {
+        "name": "Hov",
+        "id": "spikeroog_arena_village",
+        "world": [
+          -1368.56,
+          1433.3
+        ],
+        "map": [
+          33.229,
+          -99.47
+        ],
+        "plane": [
+          35.26551776352811,
+          -99.47
+        ]
+      },
+      {
+        "name": "Isolated Hut",
+        "id": "huindarsfjal_destroyed_farmstead",
+        "world": [
+          2465.54,
+          -46.6254
+        ],
+        "map": [
+          -33.505,
+          85.144
+        ],
+        "plane": [
+          -35.595992066663435,
+          85.144
+        ]
+      },
+      {
+        "name": "Kaer Almhult",
+        "id": "prison_island",
+        "world": [
+          -1279.71,
+          522.929
+        ],
+        "map": [
+          -8.538,
+          -94.922
+        ],
+        "plane": [
+          -8.569775457376993,
+          -94.922
+        ]
+      },
+      {
+        "name": "Kaer Gelen",
+        "id": "fort_gelen",
+        "world": [
+          733.747,
+          446.473
+        ],
+        "map": [
+          -12.512,
+          1.626
+        ],
+        "plane": [
+          -12.612647426130247,
+          1.626
+        ]
+      },
+      {
+        "name": "Kaer Muire",
+        "id": "lugos_keep",
+        "world": [
+          -102.348,
+          -1000.1
+        ],
+        "map": [
+          -63.085,
+          -38.496
+        ],
+        "plane": [
+          -81.93644654454845,
+          -38.496
+        ]
+      },
+      {
+        "name": "Kaer Trolde Harbor",
+        "id": "craite_harbor",
+        "world": [
+          -78.5798,
+          550.768
+        ],
+        "map": [
+          -7.067,
+          -37.617
+        ],
+        "plane": [
+          -7.084987247106911,
+          -37.617
+        ]
+      },
+      {
+        "name": "Lofoten",
+        "id": "lofotten",
+        "world": [
+          2388.1,
+          161.126
+        ],
+        "map": [
+          -25.463,
+          81.563
+        ],
+        "plane": [
+          -26.34508799249989,
+          81.563
+        ]
+      },
+      {
+        "name": "Old Watchtower",
+        "id": "spikeroog_ruins",
+        "world": [
+          -1826.78,
+          1177.8
+        ],
+        "map": [
+          22.289,
+          -121.509
+        ],
+        "plane": [
+          22.873430951587192,
+          -121.509
+        ]
+      },
+      {
+        "name": "Palisade",
+        "id": "ancient_perimeter",
+        "world": [
+          556.328,
+          -418.027
+        ],
+        "map": [
+          -47.145,
+          -6.812
+        ],
+        "plane": [
+          -53.59145931793202,
+          -6.812
+        ]
+      },
+      {
+        "name": "Rogne",
+        "id": "ragnar_village",
+        "world": [
+          316.031,
+          523.337
+        ],
+        "map": [
+          -8.494,
+          -18.171
+        ],
+        "plane": [
+          -8.525284928079925,
+          -18.171
+        ]
+      },
+      {
+        "name": "Ruined Inn",
+        "id": "the_roast_kipper_tavern",
+        "world": [
+          625.572,
+          -825.424
+        ],
+        "map": [
+          -58.939,
+          -3.252
+        ],
+        "plane": [
+          -73.3673326333676,
+          -3.252
+        ]
+      },
+      {
+        "name": "Sund",
+        "id": "sheperd_huts",
+        "world": [
+          -291.803,
+          -208.241
+        ],
+        "map": [
+          -40.212,
+          -47.9
+        ],
+        "plane": [
+          -43.98868069802251,
+          -47.9
+        ]
+      },
+      {
+        "name": "Tor Gvalch'ca",
+        "id": "elven_tower",
+        "world": [
+          -2202.11,
+          -273.95
+        ],
+        "map": [
+          -43.133,
+          -139.219
+        ],
+        "plane": [
+          -47.900306814275346,
+          -139.219
+        ]
+      },
+      {
+        "name": "Trail to Yngvar's Fang",
+        "id": "the_ridge",
+        "world": [
+          1654.94,
+          1993.35
+        ],
+        "map": [
+          52.882,
+          46.23
+        ],
+        "plane": [
+          62.53353138441083,
+          46.23
+        ]
+      },
+      {
+        "name": "Trottheim",
+        "id": "faroe_harbor_2",
+        "world": [
+          2145.5,
+          -1933.5
+        ],
+        "map": [
+          -77.49,
+          69.829
+        ],
+        "plane": [
+          -126.67306253465445,
+          69.829
+        ]
+      },
+      {
+        "name": "Urialla Harbor",
+        "id": "an_skellig_harbor",
+        "world": [
+          1492.7,
+          1902.86
+        ],
+        "map": [
+          50.092,
+          38.364
+        ],
+        "plane": [
+          58.05114490872012,
+          38.364
+        ]
+      },
+      {
+        "name": "Urskar",
+        "id": "undvik_village_3",
+        "world": [
+          -1944.48,
+          -787.787
+        ],
+        "map": [
+          -58.367,
+          -127.529
+        ],
+        "plane": [
+          -72.26776833214885,
+          -127.529
+        ]
+      },
+      {
+        "name": "Whale Graveyard",
+        "id": "whaleyard",
+        "world": [
+          1204.27,
+          422.025
+        ],
+        "map": [
+          -13.475,
+          24.39
+        ],
+        "plane": [
+          -13.600965275364015,
+          24.39
+        ]
+      },
+      {
+        "name": "Wild Shore",
+        "id": "wild_shores",
+        "world": [
+          -560.971,
+          -637.641
+        ],
+        "map": [
+          -54.098,
+          -60.754
+        ],
+        "plane": [
+          -64.57753408736886,
+          -60.754
+        ]
+      },
+      {
+        "name": "Yngvar's Fang",
+        "id": "ridgetop",
+        "world": [
+          1432.74,
+          2048.65
+        ],
+        "map": [
+          54.623,
+          35.376
+        ],
+        "plane": [
+          65.47855339537051,
+          35.376
+        ]
+      },
+      {
+        "name": "Yustianna's Grotto",
+        "id": "skellige_tomb_3",
+        "world": [
+          668.3,
+          671.426
+        ],
+        "map": [
+          -1.384,
+          -1.956
+        ],
+        "plane": [
+          -1.3841346093143048,
+          -1.956
+        ]
+      }
+    ]
+  },
+  "toussaint": {
+    "world": "bob.w2w",
+    "projection": "linear",
+    "matrix": [
+      [
+        -1.597203084666193e-05,
+        0.03195809892304745
+      ],
+      [
+        0.03195809892304745,
+        1.597203084666266e-05
+      ],
+      [
+        95.83137856834283,
+        79.91697365542106
+      ]
+    ],
+    "model": "similarity",
+    "controlPoints": 22,
+    "ambiguousNamesSkipped": [],
+    "residual": {
+      "mean": 0.15030296412522823,
+      "median": 0.13130922246858762,
+      "p95": 0.2602792391724239,
+      "max": 0.3212279121520648,
+      "meanMetres": 4.7031253553529515
+    },
+    "anisotropy": 1.0010497656806954,
+    "anisotropyReliable": true,
+    "leaveOneOut": {
+      "mean": 0.16530396718735466,
+      "max": 0.35562277206255277,
+      "meanMetres": 5.172521273576044
+    },
+    "metresPerMapUnit": 31.290968762495186,
+    "trusted": true,
+    "points": [
+      {
+        "name": "Ardaiso Quarry",
+        "id": "ardaiso_quarry_ft",
+        "world": [
+          633.432,
+          -751.331
+        ],
+        "map": [
+          71.75,
+          100.203
+        ],
+        "plane": [
+          71.75,
+          100.203
+        ]
+      },
+      {
+        "name": "Arthach Palace Ruins",
+        "id": "swamps_ft",
+        "world": [
+          -173.326,
+          556.405
+        ],
+        "map": [
+          113.828,
+          74.422
+        ],
+        "plane": [
+          113.828,
+          74.422
+        ]
+      },
+      {
+        "name": "Basane Farm",
+        "id": "lake_village_ft",
+        "world": [
+          655.984,
+          -234.817
+        ],
+        "map": [
+          88.438,
+          100.969
+        ],
+        "plane": [
+          88.438,
+          100.969
+        ]
+      },
+      {
+        "name": "Belgaard Vineyard",
+        "id": "belgard_vineyard_ft",
+        "world": [
+          -280.732,
+          -1648.17
+        ],
+        "map": [
+          43.031,
+          70.906
+        ],
+        "plane": [
+          43.031,
+          70.906
+        ]
+      },
+      {
+        "name": "Casteldaccia Abandoned Estate",
+        "id": "casteldaccia_vineyard_ft",
+        "world": [
+          642.493,
+          -1116.28
+        ],
+        "map": [
+          59.938,
+          100.188
+        ],
+        "plane": [
+          59.938,
+          100.188
+        ]
+      },
+      {
+        "name": "Chuchote Cave",
+        "id": "longhollow_ft",
+        "world": [
+          -851.011,
+          -552.56
+        ],
+        "map": [
+          78.234,
+          52.672
+        ],
+        "plane": [
+          78.234,
+          52.672
+        ]
+      },
+      {
+        "name": "Coopers' Gate",
+        "id": "beauclair_north_gate_ft",
+        "world": [
+          -482.621,
+          -1209.13
+        ],
+        "map": [
+          57.328,
+          64.453
+        ],
+        "plane": [
+          57.328,
+          64.453
+        ]
+      },
+      {
+        "name": "Coronata Vineyard",
+        "id": "coronata_vineyard_ft",
+        "world": [
+          -195.437,
+          -80.6218
+        ],
+        "map": [
+          93.203,
+          73.578
+        ],
+        "plane": [
+          93.203,
+          73.578
+        ]
+      },
+      {
+        "name": "Dulcinea Windmill",
+        "id": "windmill_west_ft",
+        "world": [
+          -161.762,
+          -328.452
+        ],
+        "map": [
+          85.578,
+          74.844
+        ],
+        "plane": [
+          85.578,
+          74.844
+        ]
+      },
+      {
+        "name": "Dun Tynne Castle",
+        "id": "dun_tynne_ft",
+        "world": [
+          184.698,
+          -425.818
+        ],
+        "map": [
+          82.219,
+          85.75
+        ],
+        "plane": [
+          82.219,
+          85.75
+        ]
+      },
+      {
+        "name": "Dun Tynne Crossroads",
+        "id": "northern_dun_tynne_crossing_ft",
+        "world": [
+          331.107,
+          -106.928
+        ],
+        "map": [
+          92.188,
+          90.406
+        ],
+        "plane": [
+          92.188,
+          90.406
+        ]
+      },
+      {
+        "name": "Dun Tynne Hillside",
+        "id": "dun_tynne_vineyards_ft",
+        "world": [
+          442.61,
+          -493.664
+        ],
+        "map": [
+          79.984,
+          94.141
+        ],
+        "plane": [
+          79.984,
+          94.141
+        ]
+      },
+      {
+        "name": "Francollarts",
+        "id": "francollarts_ft",
+        "world": [
+          -14.0358,
+          -1762.09
+        ],
+        "map": [
+          39.563,
+          79.563
+        ],
+        "plane": [
+          39.563,
+          79.563
+        ]
+      },
+      {
+        "name": "Lebioda's Gate",
+        "id": "temple_gate_ft",
+        "world": [
+          -446.009,
+          -1591.22
+        ],
+        "map": [
+          45.078,
+          65.547
+        ],
+        "plane": [
+          45.078,
+          65.547
+        ]
+      },
+      {
+        "name": "Mont Crane Castle",
+        "id": "mont_crane_ft",
+        "world": [
+          860.838,
+          -550.832
+        ],
+        "map": [
+          78.328,
+          107.422
+        ],
+        "plane": [
+          78.328,
+          107.422
+        ]
+      },
+      {
+        "name": "Palace Gardens",
+        "id": "palace_gardens_ft",
+        "world": [
+          -820.677,
+          -1366.86
+        ],
+        "map": [
+          52.188,
+          53.859
+        ],
+        "plane": [
+          52.188,
+          53.859
+        ]
+      },
+      {
+        "name": "Plegmund's Bridge",
+        "id": "vermentino_vineyard_ft",
+        "world": [
+          -433.834,
+          -66.5965
+        ],
+        "map": [
+          93.547,
+          66.094
+        ],
+        "plane": [
+          93.547,
+          66.094
+        ]
+      },
+      {
+        "name": "Rioux-Cannes Outpost",
+        "id": "sawmill_village_ft",
+        "world": [
+          -1168.4,
+          -1163.91
+        ],
+        "map": [
+          58.563,
+          42.484
+        ],
+        "plane": [
+          58.563,
+          42.484
+        ]
+      },
+      {
+        "name": "San Sebastian",
+        "id": "lower_city_ft",
+        "world": [
+          -310.951,
+          -1173.15
+        ],
+        "map": [
+          58.5,
+          70.047
+        ],
+        "plane": [
+          58.5,
+          70.047
+        ]
+      },
+      {
+        "name": "Sansretour Valley",
+        "id": "windmills_ft",
+        "world": [
+          -435.664,
+          -584.735
+        ],
+        "map": [
+          76.953,
+          65.938
+        ],
+        "plane": [
+          76.953,
+          65.938
+        ]
+      },
+      {
+        "name": "The Silver Salamander Inn",
+        "id": "village_by_swamp_ft",
+        "world": [
+          -435.344,
+          455.189
+        ],
+        "map": [
+          110.344,
+          66.078
+        ],
+        "plane": [
+          110.344,
+          66.078
+        ]
+      },
+      {
+        "name": "Trading Post",
+        "id": "merchants_camp_ft",
+        "world": [
+          10.7213,
+          262.783
+        ],
+        "map": [
+          104.281,
+          80.156
+        ],
+        "plane": [
+          104.281,
+          80.156
+        ]
+      }
+    ]
+  },
+  "kaermorhen": {
+    "world": "kaer_morhen.w2w",
+    "projection": "linear",
+    "matrix": [
+      [
+        -0.00034032410693093544,
+        0.06408366167676012
+      ],
+      [
+        0.0640836616767601,
+        0.0003403241069309446
+      ],
+      [
+        63.85399528325594,
+        63.92411235099867
+      ]
+    ],
+    "model": "similarity",
+    "controlPoints": 5,
+    "ambiguousNamesSkipped": [],
+    "residual": {
+      "mean": 0.18919092885622288,
+      "median": 0.13230865909712633,
+      "p95": 0.32611643073871616,
+      "max": 0.3286604913556374,
+      "meanMetres": 2.952207413159306
+    },
+    "anisotropy": 1.0242864410519419,
+    "anisotropyReliable": false,
+    "leaveOneOut": {
+      "mean": 0.35535496135442174,
+      "max": 0.6161351927015738,
+      "meanMetres": 5.545094352862553
+    },
+    "metresPerMapUnit": 15.604381409865898,
+    "trusted": true,
+    "points": [
+      {
+        "name": "Bastion",
+        "id": "morhen_eye",
+        "world": [
+          -310.727,
+          -19.7643
+        ],
+        "map": [
+          62.531,
+          43.719
+        ],
+        "plane": [
+          62.531,
+          43.719
+        ]
+      },
+      {
+        "name": "Iron Mine",
+        "id": "morhen_mine_dam",
+        "world": [
+          -130.809,
+          -248.08
+        ],
+        "map": [
+          47.922,
+          55.547
+        ],
+        "plane": [
+          47.922,
+          55.547
+        ]
+      },
+      {
+        "name": "Kaer Morhen",
+        "id": "kaer_morhen_entrance",
+        "world": [
+          -82.6155,
+          -46.85
+        ],
+        "map": [
+          61.172,
+          58.734
+        ],
+        "plane": [
+          61.172,
+          58.734
+        ]
+      },
+      {
+        "name": "Lakeside Hut",
+        "id": "lake_house",
+        "world": [
+          25.6946,
+          284.247
+        ],
+        "map": [
+          82.109,
+          65.656
+        ],
+        "plane": [
+          82.109,
+          65.656
+        ]
+      },
+      {
+        "name": "Ruined Watchtower",
+        "id": "km_outpost_ruins",
+        "world": [
+          -85.4957,
+          824.57
+        ],
+        "map": [
+          116.625,
+          58.813
+        ],
+        "plane": [
+          116.625,
+          58.813
+        ]
+      }
+    ]
+  },
+  "whiteorchard": {
+    "world": "prolog_village.w2w",
+    "projection": "mercator",
+    "matrix": [
+      [
+        -0.000585269515134987,
+        0.17862343750019696
+      ],
+      [
+        0.17862343750019694,
+        0.0005852695151349735
+      ],
+      [
+        -90.26424783202793,
+        -90.19846067267746
+      ]
+    ],
+    "model": "similarity",
+    "controlPoints": 6,
+    "ambiguousNamesSkipped": [],
+    "residual": {
+      "mean": 0.38328761570940956,
+      "median": 0.41331055722735244,
+      "p95": 0.5638583801504976,
+      "max": 0.6036812803562042,
+      "meanMetres": 2.1457741696049712
+    },
+    "anisotropy": 1.0112014640530276,
+    "anisotropyReliable": false,
+    "leaveOneOut": {
+      "mean": 0.5848769860039157,
+      "max": 0.829340637227981,
+      "meanMetres": 3.274339888704107
+    },
+    "metresPerMapUnit": 5.5983394236034885,
+    "trusted": true,
+    "points": [
+      {
+        "name": "Abandoned Village",
+        "id": "well_village",
+        "world": [
+          22.551,
+          -243.895
+        ],
+        "map": [
+          -78.955,
+          -85.869
+        ],
+        "plane": [
+          -133.85971926411318,
+          -85.869
+        ]
+      },
+      {
+        "name": "Cackler Bridge",
+        "id": "bridge_gate",
+        "world": [
+          430.905,
+          217.426
+        ],
+        "map": [
+          -46.073,
+          -13.271
+        ],
+        "plane": [
+          -52.03091756211684,
+          -13.271
+        ]
+      },
+      {
+        "name": "Ford",
+        "id": "River_crossing",
+        "world": [
+          295.571,
+          -20.8789
+        ],
+        "map": [
+          -68.106,
+          -37.266
+        ],
+        "plane": [
+          -94.13058712575494,
+          -37.266
+        ]
+      },
+      {
+        "name": "Mill",
+        "id": "Windmill",
+        "world": [
+          4.22909,
+          204.472
+        ],
+        "map": [
+          -47.339,
+          -89.912
+        ],
+        "plane": [
+          -53.87721476811113,
+          -89.912
+        ]
+      },
+      {
+        "name": "Nilfgaardian Garrison",
+        "id": "Nilfgaard_camp",
+        "world": [
+          -353.842,
+          384.696
+        ],
+        "map": [
+          -20.468,
+          -153.281
+        ],
+        "plane": [
+          -20.917766776156174,
+          -153.281
+        ]
+      },
+      {
+        "name": "Sawmill",
+        "id": "woodcutters_lodge",
+        "world": [
+          -290.745,
+          15.0475
+        ],
+        "map": [
+          -65.44,
+          -141.855
+        ],
+        "plane": [
+          -87.3632772570452,
+          -141.855
+        ]
+      }
+    ]
+  }
+}

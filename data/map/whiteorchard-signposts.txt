@@ -1,0 +1,10 @@
+Abandoned Village|-78.955|-85.869
+Broken Bridge|-77.916|-109.819
+Woesong Bridge|-67.136|-72.202
+Sawmill|-65.440|-141.855
+Mill|-47.339|-89.912
+Nilfgaardian Garrison|-20.468|-153.281
+Cackler Bridge|-46.073|-13.271
+Crossroads|-63.015|-4.482
+Ford|-68.106|-37.266
+Ransacked Village|-71.413|1.230
