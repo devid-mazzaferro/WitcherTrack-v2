@@ -68,6 +68,33 @@ is. The map pins are swept here as they are from every other live hook: a card i
 last thing picked up at a place that has just been cleared, and without that sweep nothing
 asked the game whether the pin had gone out.
 
+### The third call in this file: `W3PlayerWitcher.Meditate`
+
+```witcherscript
+GotoState('Meditation');
+medState = (W3PlayerWitcherStateMeditation)GetState('Meditation');
+medState.SetMeditationPointHeading(GetHeading());
+WT_OnMeditation();   // modWitcherTrack
+
+return true;
+```
+
+One line at the end of the successful path, after the state change and the heading are set.
+Not at the very end of the body: `Meditate` ends in `return true`, and a call appended past
+that would never run.
+
+This hook reports nothing. It is a heartbeat, and it is the only one there is. Every other
+live hook is a notification about something else that happens to prompt a re-read, which
+leaves a point of interest the game has already cleared waiting for the next unrelated
+event before anyone asks about it. Meditation is frequent and it happens in the gaps, which
+is exactly where that wait is longest.
+
+The end of meditation would be the better moment, since time has passed by then. It is not
+available here: the meditation states live in files this mod does not ship, and the one
+end-of-meditation callback that does live in `playerWitcher.ws`, `MeditationRestoring`,
+cannot be shown from these files to run only once per meditation - and one that fired per
+simulated hour would put a full sweep in the log for each of them.
+
 ---
 
 ## 2. `content/scripts/game/gui/hud/modules/hudModuleJournalUpdate.ws`
@@ -132,6 +159,7 @@ above ever ran. The buff is what gives it away; the game names them per sign
 |---|---|
 | `OnSpawned` | full snapshot on every load, so reloads resynchronise the run |
 | `AddGwentCard` | a Gwent card the moment it enters the collection, plus a map-pin sweep |
+| `Meditate` | nothing of its own: a map-pin sweep at a moment that comes often |
 | `AddQuestUpdate` | quest status the instant the journal changes |
 | `AddCraftingSchematicUpdate` | diagram learned, by internal name |
 | `AddAlchemySchematicUpdate` | formula learned, by internal name |
