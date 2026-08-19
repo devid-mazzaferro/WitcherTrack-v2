@@ -34,6 +34,14 @@ namespace WitcherTrack.App;
 /// What the run had completed when it was last saved, so the dashboard is correct the
 /// moment it opens rather than blank until the game next writes a report.
 /// </param>
+/// <param name="IgtSeconds">
+/// In-game time accumulated so far, if the optional clock was ever started. Stored for
+/// the same reason <paramref name="PlaySeconds"/> is: the clock can only accumulate going
+/// forward, so a total lost on shutdown can never be recovered - and a run that spans
+/// several evenings would restart it from zero every night. Absent from a file written
+/// before this existed, where it reads as zero, which is exactly right for a run that
+/// never used the clock.
+/// </param>
 internal sealed record PersistedRun(
     int Version,
     DateTimeOffset? RunStartedAt,
@@ -43,13 +51,18 @@ internal sealed record PersistedRun(
     IReadOnlyDictionary<string, CompletionState> States,
     IReadOnlyDictionary<string, PlayerPlace> FinishedAt,
     IReadOnlyList<string> CompletionOrder,
-    IReadOnlyList<ManualOverride> Overrides);
+    IReadOnlyList<ManualOverride> Overrides,
+    double IgtSeconds = 0);
 
 /// <summary>Reads and writes the run file.</summary>
 internal static class RunStore
 {
-    /// <summary>The only shape this build will read.</summary>
-    public const int CurrentVersion = 1;
+    /// <summary>
+    /// The newest shape this build writes. Older files still load: every field added since
+    /// has a default that means "this run never had one", so a run in progress survives an
+    /// upgrade instead of being thrown away by it.
+    /// </summary>
+    public const int CurrentVersion = 2;
 
     /// <summary>
     /// Where the run lives: beside the executable, like the catalogue and the map data.
