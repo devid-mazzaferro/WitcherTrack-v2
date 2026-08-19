@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<!--
+  Map.
+
+  One region at a time, because the game's coordinates are local to whichever world
+  file was streamed in - the same X/Y means somewhere quite different in Skellige than
+  in Velen. /api/map groups them accordingly and the tabs below follow that grouping.
+
+  Points are drawn through the fitted world-to-map transform when one is on file
+  (data/map/calibration.json), which is what makes a region come out oriented the way
+  every map of the game is drawn rather than rotated and mirrored into raw world axes.
+  Without it the map still works; it just looks unfamiliar.
+
+  The scrubber replays the run: it reads /api/timeline, which timestamps every
+  completion, and draws the map as it stood at that moment.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WitcherTrack - map</title>
+<style>
+  /* Same industrial palette as the dashboard. */
+  :root {
+    color-scheme: dark;
+    --page:        #101214;
+    --surface:     #171a1e;
+    --hairline:    #24272c;
+    --grid:        #2b2f35;
+    --ink:         #e6e9ec;
+    --ink-2:       #9aa3ad;
+    --ink-muted:   #6c747c;
+    --accent:        #b9c6d1;
+    --border:      #30353c;
+    --hover-bg:    #1d2126;
+    --track-bg:    #23272c;
+    --switch-on:   #20242a;
+
+    --done:      #199e70;   /* categorical slot 3, as on the dashboard's Formulae line */
+    --todo:      #c98500;   /* slot 4, the Points of Interest line */
+    --context:   #4a525b;   /* signposts and workbenches: there to orient by, not to do */
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 1.75rem 2.5rem 2.5rem; background: var(--page); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .page { max-width: 1500px; margin: 0 auto; }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+            flex-wrap: wrap; padding-bottom: 1.1rem; margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--hairline); }
+  h1 { font-size: 1rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+       margin: 0; display: flex; align-items: baseline; gap: .6rem; }
+  h1 .tag { font-size: .68rem; letter-spacing: .06em; color: var(--ink-muted); text-transform: none; }
+  .btn { all: unset; cursor: pointer; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase;
+         color: var(--ink-2); border: 1px solid var(--border); border-radius: 6px; padding: .45rem .85rem; }
+  .btn:hover, .btn:focus-visible { color: var(--ink); border-color: #454b53; }
+
+  .switch { display: inline-flex; border: 1px solid var(--border); border-radius: 6px;
+            overflow: hidden; flex-wrap: wrap; }
+  .switch button { all: unset; cursor: pointer; padding: .35rem .8rem; font-size: .72rem;
+                   letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2); }
+  .switch button:hover { color: var(--ink); }
+  .switch button.on { background: var(--switch-on); color: var(--ink); }
+
+  .controls { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
+              margin-bottom: .9rem; }
+  .legend { display: flex; gap: 1.1rem; flex-wrap: wrap; font-size: .8rem; color: var(--ink-2); }
+  .legend .item { display: flex; align-items: center; gap: .45rem; }
+  .legend .dot { width: 9px; height: 9px; border-radius: 50%; }
+
+  /* A stage of fixed height. The regions are wildly different shapes - Velen is tall,
+     White Orchard is wide, Toussaint is square - and letting each set its own box made
+     the whole page jump every time a tab was pressed. The picture is fitted inside this
+     instead, letterboxed, so only the map changes. */
+  .canvas-wrap { position: relative; background: var(--surface); border: 1px solid var(--hairline);
+                 border-radius: 10px; overflow: hidden; height: min(74vh, 860px);
+                 cursor: grab; touch-action: none; }
+  .canvas-wrap.dragging { cursor: grabbing; }
+  svg { display: block; width: 100%; height: 100%; }
+  .note { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+          text-align: center; color: var(--ink-muted); font-size: .85rem; max-width: 34rem;
+          line-height: 1.6; }
+  .note code { color: var(--ink-2); }
+  .zoombar { position: absolute; right: .75rem; top: .75rem; display: flex; gap: .35rem; }
+  .zoombar button { all: unset; cursor: pointer; width: 2rem; height: 2rem; text-align: center;
+                    line-height: 2rem; font-size: .95rem; color: var(--ink-2);
+                    background: rgba(16,18,20,.82); border: 1px solid var(--border);
+                    border-radius: 6px; }
+  .zoombar button:hover { color: var(--ink); border-color: #454b53; }
+  .zoombar button[disabled] { opacity: .35; cursor: default; }
+  .zoombar .level { font-size: .72rem; letter-spacing: .04em; width: auto; padding: 0 .5rem;
+                    cursor: default; font-variant-numeric: tabular-nums; }
+  .frame { fill: none; stroke: var(--grid); stroke-width: 1; }
+  .pt { stroke: rgba(12,14,16,.85); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+  .pin { cursor: default; }
+  /* The artwork is the marker now, so it carries the done/to-do colour itself rather
+     than sitting on a coloured disc. A dark halo is what keeps it legible against a map
+     that is the same browns and greens the icons are drawn in. */
+  .pin-art { pointer-events: none;
+             filter: drop-shadow(0 0 1px rgba(8,10,12,1))
+                     drop-shadow(0 0 2px rgba(8,10,12,.95))
+                     drop-shadow(0 1px 3px rgba(8,10,12,.7)); }
+  /* Invisible, and the only thing the pointer can hit: a masked shape is hit-tested
+     through its mask, so hovering would otherwise mean landing on a drawn line. */
+  .pin-hit { fill: #000; fill-opacity: 0; }
+  /* The order things fell in, not a path anyone walked - drawn thin and dashed so it
+     never reads as a road, and under the pins so it never obscures one. */
+  .trail { fill: none; stroke: var(--accent); stroke-width: 1.5; opacity: .5;
+           stroke-dasharray: 5 4; stroke-linejoin: round; stroke-linecap: round;
+           vector-effect: non-scaling-stroke; pointer-events: none; }
+  /* Whatever the playhead is sitting on. */
+  .newest { fill: none; stroke: var(--ink); stroke-width: 2; opacity: .9;
+            vector-effect: non-scaling-stroke; pointer-events: none; }
+
+  .tooltip { position: absolute; pointer-events: none; background: var(--hover-bg);
+             border: 1px solid var(--border); border-radius: 8px; padding: .5rem .7rem;
+             font-size: .78rem; box-shadow: 0 6px 20px rgba(0,0,0,.45); display: none;
+             max-width: 260px; }
+  .tooltip .what { color: var(--ink); font-weight: 600; word-break: break-word; }
+  .tooltip .meta { color: var(--ink-2); font-size: .72rem; margin-top: .2rem; }
+
+  /* ---------- scrubber ---------- */
+  .scrub { margin-top: 1.1rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .scrub input[type=range] { flex: 1; min-width: 260px; accent-color: var(--accent); }
+  .scrub .at { font-size: .8rem; color: var(--ink-2); font-variant-numeric: tabular-nums;
+               min-width: 12ch; }
+  .scrub .count { font-size: .8rem; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+
+  h2.section { font-size: .78rem; letter-spacing: .12em; text-transform: uppercase;
+               color: var(--ink-2); margin: 0 0 .25rem; font-weight: 600; }
+  .section-note { font-size: .78rem; color: var(--ink-muted); margin: 0 0 1rem; }
+  .empty { color: var(--ink-muted); font-size: .85rem; padding: 2.5rem; text-align: center; }
+  footer { margin-top: 2rem; font-size: .72rem; color: var(--ink-muted); line-height: 1.7; }
+  footer a { color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <h1>Map <span class="tag" id="region-tag"></span></h1>
+    <div style="display:flex; gap:.6rem; flex-wrap:wrap">
+      <a class="btn" href="/">Back to dashboard</a>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="switch" id="regions"></div>
+    <div class="switch" id="options"></div>
+    <div class="legend">
+      <div class="item"><span class="dot" style="background:var(--done)"></span>done</div>
+      <div class="item"><span class="dot" style="background:var(--todo)"></span>still to do</div>
+      <div class="item"><span class="dot" style="background:var(--context)"></span>signpost</div>
+    </div>
+  </div>
+
+  <div class="canvas-wrap" id="wrap">
+    <div class="empty" id="empty">Loading the map...</div>
+  </div>
+
+  <div class="scrub" id="scrub" style="display:none">
+    <button class="btn" id="play">Play</button>
+    <input type="range" id="slider" min="0" max="0" value="0">
+    <span class="at" id="at"></span>
+    <span class="count" id="count"></span>
+  </div>
+
+  <footer id="credits"></footer>
+</div>
+
+<script src="/icons.js"></script>
+<script>
+/* ------------------------------------------------------------------ state */
+
+let regions = [];          // from /api/map
+let timeline = { runStartedAt: null, unlocks: [] };
+let doneAt = new Map();    // catalogId -> ms since the run started
+let current = 0;           // which region is shown
+let cutoff = null;         // scrubber position in ms, or null for "now"
+let playing = null;
+
+/* Three zoom steps, which is what a map this size needs: the whole region, a closer
+   look, and enough to separate points that overlap at the first two. More would only
+   magnify a picture that has no more detail in it. */
+const ZOOMS = [1, 2, 4];
+let zoomStep = 0;
+let centre = null;         // where the view is centred, in image coordinates
+let dragFrom = null;
+let follow = true;         // during playback, keep the newest completion in view
+let trail = false;         // draw the route between completions in the order they fell
+
+/* Prettier names for the world files the game reports. Anything unlisted falls back to
+   the file's own name, so a world nobody has seen yet still shows up rather than
+   vanishing. */
+const REGION_NAMES = {
+  'novigrad.w2w': 'Velen & Novigrad',
+  'skellige.w2w': 'Skellige',
+  'bob.w2w': 'Toussaint',
+  'kaer_morhen.w2w': 'Kaer Morhen',
+  'prolog_village.w2w': 'White Orchard',
+  'prolog_village_winter.w2w': 'White Orchard (winter)',
+  'wyzima_castle.w2w': 'Vizima',
+  'spiral.w2w': 'The Spiral',
+  'island_of_mist.w2w': 'Isle of Mists',
+};
+
+function regionName(world) {
+  const leaf = world.split('\\').pop();
+  return REGION_NAMES[leaf] || leaf.replace(/\.w2w$/, '');
+}
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+function elapsed(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h > 0 ? h + 'h ' + String(m).padStart(2, '0') + 'm'
+               : m + 'm ' + String(s % 60).padStart(2, '0') + 's';
+}
+
+/* ------------------------------------------------------- placing a point */
+
+/* World X/Y to the community map's own coordinates.
+ *
+ * The fit is published as a similarity: [north, east] = [x, y, 1] * matrix. For a
+ * region drawn as a web map the north component comes out Mercator-stretched and has
+ * to be un-stretched to be a latitude again - the same inverse noted in
+ * tools/fit_map_calibration.py.
+ *
+ * With no matrix on file this falls back to the raw world axes, which still draws a
+ * correct *shape*; it is only the orientation that is then arbitrary. */
+function place(region, point) {
+  // With a background built, its own transform is the authority: it already folds in the
+  // fit, the projection, the crop and the downscale, so a point and the picture under it
+  // cannot drift apart. Y grows downward in an image, hence the negation - everything
+  // below draws with north up.
+  if (region.background) {
+    const m = region.background.pixelMatrix;
+    return {
+      east:   point.x * m[0][0] + point.y * m[1][0] + m[2][0],
+      north: -(point.x * m[0][1] + point.y * m[1][1] + m[2][1]),
+    };
+  }
+
+  if (!region.matrix) return { north: point.y, east: point.x };
+
+  const m = region.matrix;
+  const north = point.x * m[0][0] + point.y * m[1][0] + m[2][0];
+  const east  = point.x * m[0][1] + point.y * m[1][1] + m[2][1];
+
+  if (region.projection === 'mercator') {
+    const lat = (2 * Math.atan(Math.exp(north * Math.PI / 180)) - Math.PI / 2) * 180 / Math.PI;
+    return { north: lat, east };
+  }
+
+  return { north, east };
+}
+
+/** Every placed completion that still stands, oldest first.
+ *
+ *  This is the run's route through a region: not where the player walked, which nothing
+ *  records, but the order the places actually fell in. Points completed in a branch that
+ *  was later reloaded away are left out, for the same reason playback leaves them out. */
+function route(region, upTo) {
+  return region.points
+    .filter(p => p.counts && p.done && doneAt.has(p.id) && doneAt.get(p.id) <= upTo)
+    .sort((a, b) => doneAt.get(a.id) - doneAt.get(b.id));
+}
+
+/** The most recent completion anywhere at or before `upTo`, with the region holding it. */
+function newestAt(upTo) {
+  let best = null;
+
+  for (let i = 0; i < regions.length; i++) {
+    for (const p of regions[i].points) {
+      if (!p.counts || !p.done || !doneAt.has(p.id)) continue;
+      const at = doneAt.get(p.id);
+      if (at > upTo) continue;
+      if (!best || at > best.at) best = { at, point: p, region: i };
+    }
+  }
+
+  return best;
+}
+
+/** Whether a point counts as done at the scrubber's position.
+ *
+ *  Playback is the path to where the run stands now, not a literal rewind, and the
+ *  difference matters after a reload. The timeline records every moment something
+ *  became done; it does not record anything becoming *un*-done, which is what happens
+ *  when an earlier savegame is loaded and the next snapshot supersedes the abandoned
+ *  timeline (see StateResolver's rule 3). Read on its own it therefore over-counts -
+ *  measured against a real log, it claimed 27 of 27 in White Orchard at the start of a
+ *  run that currently stands at 3.
+ *
+ *  So the current state is the ceiling: something not done now never lights up, however
+ *  many times it was completed in a branch that was thrown away. */
+function doneAsOf(point) {
+  if (cutoff === null) return point.done;
+  if (!point.done) return false;
+
+  const at = doneAt.get(point.id);
+  return at !== undefined && at <= cutoff;
+}
+
+/* ----------------------------------------------------------------- render */
+
+function draw() {
+  const wrap = document.getElementById('wrap');
+  wrap.textContent = '';
+
+  const region = regions[current];
+  if (!region) {
+    wrap.appendChild(el('div', 'note', 'No points with coordinates yet.'));
+    return;
+  }
+
+  // What a run has to clear, plus signposts. The other uncounted pins - workbenches,
+  // grindstones, noticeboards, harbours - were two hundred grey dots that only got in
+  // the way of the background. Signposts earn their place: they are the fast-travel
+  // network, which is how a route is actually planned.
+  const drawn = region.points.filter(p => p.counts || p.pinType === 'RoadSign');
+  const placed = drawn.map(p => ({ p, at: place(region, p) }));
+
+  let W, H, X, Y;
+
+  if (region.background) {
+    // The picture sets the frame. Fitting it to the points instead would crop the map
+    // to wherever this run happens to have been, and move the whole thing every time
+    // something new is discovered.
+    W = region.background.width;
+    H = region.background.height;
+    X = e => e;
+    Y = n => -n;
+  } else {
+    const norths = placed.map(q => q.at.north), easts = placed.map(q => q.at.east);
+    const minN = Math.min(...norths), maxN = Math.max(...norths);
+    const minE = Math.min(...easts), maxE = Math.max(...easts);
+
+    // Keep the aspect ratio: a region squeezed to fill a box is no longer its own shape.
+    const PAD = 24;
+    W = 1400;
+    const spanE = Math.max(maxE - minE, 1e-6), spanN = Math.max(maxN - minN, 1e-6);
+    H = Math.round((W - 2 * PAD) * spanN / spanE) + 2 * PAD;
+    const scale = (W - 2 * PAD) / spanE;
+
+    // North is up, so the vertical axis is inverted against the screen's.
+    X = e => PAD + (e - minE) * scale;
+    Y = n => H - PAD - (n - minN) * scale;
+  }
+
+  // The window onto the picture: the whole thing at the first zoom step, a sub-rectangle
+  // after that, kept inside the edges so panning can never scroll off into nothing.
+  const k = ZOOMS[zoomStep];
+  const viewW = W / k, viewH = H / k;
+  if (!centre) centre = { x: W / 2, y: H / 2 };
+  centre.x = Math.min(Math.max(centre.x, viewW / 2), W - viewW / 2);
+  centre.y = Math.min(Math.max(centre.y, viewH / 2), H - viewH / 2);
+  const view = [centre.x - viewW / 2, centre.y - viewH / 2, viewW, viewH];
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', view.join(' '));
+  // Letterbox rather than stretch: the stage is a fixed box and the regions are not all
+  // the same shape, so something has to give and it must not be the map's proportions.
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label',
+    regionName(region.world) + ': ' + drawn.length + ' points, '
+    + drawn.filter(doneAsOf).length + ' of them cleared.');
+
+  if (region.background) {
+    const img = document.createElementNS(NS, 'image');
+    const url = '/map/bg/' + region.background.image;
+    // Both spellings: `href` is SVG2 and what current browsers use, `xlink:href` is what
+    // anything older reads. Setting one only is the usual reason a picture silently
+    // fails to appear while everything else on the page works.
+    img.setAttribute('href', url);
+    img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', url);
+    img.setAttribute('x', 0); img.setAttribute('y', 0);
+    img.setAttribute('width', W); img.setAttribute('height', H);
+    // A missing picture is said out loud rather than left as an empty box, because the
+    // points still draw and the result otherwise looks like a deliberate design.
+    img.addEventListener('error', () => {
+      const note = el('div', 'note');
+      note.innerHTML = 'The map picture for this region did not load ('
+        + '<code>' + url + '</code>). The points below are still placed correctly. '
+        + 'Check that <code>data/map/' + region.background.image + '</code> sits next to '
+        + '<code>catalog.json</code> where the tracker is running from.';
+      wrap.appendChild(note);
+    });
+    svg.appendChild(img);
+  }
+
+  // One mask per distinct artwork, not per point. Both the mask and its contents are
+  // measured as fractions of whatever the mask is applied to, so a single definition
+  // serves every marker that shares the picture, at any size and any zoom.
+  const defs = document.createElementNS(NS, 'defs');
+  const masks = new Map();
+  svg.appendChild(defs);
+
+  function maskFor(art) {
+    let id = masks.get(art);
+    if (id) return id;
+
+    id = 'art-' + masks.size;
+    const mask = document.createElementNS(NS, 'mask');
+    mask.setAttribute('id', id);
+    mask.setAttribute('maskUnits', 'objectBoundingBox');
+    mask.setAttribute('maskContentUnits', 'objectBoundingBox');
+
+    // White line art on transparency, read as a luminance mask: the drawn lines come
+    // through at full strength and everything around them at none.
+    const img = document.createElementNS(NS, 'image');
+    img.setAttribute('href', art);
+    img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', art);
+    img.setAttribute('x', 0); img.setAttribute('y', 0);
+    img.setAttribute('width', 1); img.setAttribute('height', 1);
+    img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    mask.appendChild(img);
+
+    defs.appendChild(mask);
+    masks.set(art, id);
+    return id;
+  }
+
+  const frame = document.createElementNS(NS, 'rect');
+  frame.setAttribute('class', 'frame');
+  frame.setAttribute('x', 1); frame.setAttribute('y', 1);
+  frame.setAttribute('width', W - 2); frame.setAttribute('height', H - 2);
+  frame.setAttribute('rx', 8);
+  svg.appendChild(frame);
+
+  const tip = el('div', 'tooltip');
+
+  // Northernmost last, so a marker overlaps the one above it rather than the one below,
+  // which is the way the eye expects things nearer the viewer to sit.
+  placed.sort((a, b) => b.at.north - a.at.north);
+
+  if (trail) {
+    const walked = route(region, cutoff === null ? Infinity : cutoff);
+
+    if (walked.length > 1) {
+      const line = document.createElementNS(NS, 'path');
+      line.setAttribute('d', walked
+        .map((p, i) => {
+          const at = place(region, p);
+          return (i ? 'L ' : 'M ') + X(at.east) + ' ' + Y(at.north);
+        })
+        .join(' '));
+      line.setAttribute('class', 'trail');
+      svg.appendChild(line);
+    }
+  }
+
+  // Constant on screen: the marker should not grow with the zoom, only get further apart.
+  const size = 21 * (W / 1400) / k;
+
+  // With no disc around it the artwork can afford to be bigger - the old size was chosen
+  // to sit inside a circle, and there is no longer a circle to sit inside.
+  const ART = size * 1.9;
+
+  for (const { p, at } of placed) {
+    const done = doneAsOf(p);
+    const signpost = !p.counts;
+    const group = document.createElementNS(NS, 'g');
+    group.setAttribute('class', 'pin');
+
+    // A signpost has no artwork - it is a landmark, not a completion - so it stays the
+    // small neutral dot it has always been.
+    if (signpost) {
+      const dot = document.createElementNS(NS, 'circle');
+      dot.setAttribute('cx', X(at.east));
+      dot.setAttribute('cy', Y(at.north));
+      dot.setAttribute('r', size * 0.22);
+      dot.setAttribute('class', 'pt');
+      dot.setAttribute('fill', 'var(--context)');
+      group.appendChild(dot);
+    } else {
+      // A quest or a card has no pin of its own, so it borrows the row icon the dashboard
+      // and the overlay already use for that kind. Diagrams and formulae have no artwork
+      // of their own in icons.js - by design, the game draws none either - so they land on
+      // the generic pin, which is what the fallback is for.
+      const art = PIN_ICONS[p.pinType] || ROW_ICON_OVERRIDES[p.kind] || PIN_ICON_FALLBACK;
+
+      // The artwork is painted rather than drawn: a rectangle of the done/to-do colour,
+      // showing only where the icon's own white lines are. That is what lets the marker
+      // be the icon and still say whether it is cleared, with no disc behind it.
+      const icon = document.createElementNS(NS, 'rect');
+      icon.setAttribute('x', X(at.east) - ART / 2);
+      icon.setAttribute('y', Y(at.north) - ART / 2);
+      icon.setAttribute('width', ART);
+      icon.setAttribute('height', ART);
+      icon.setAttribute('fill', done ? 'var(--done)' : 'var(--todo)');
+      icon.setAttribute('mask', 'url(#' + maskFor(art) + ')');
+      icon.setAttribute('class', 'pin-art');
+      group.appendChild(icon);
+
+      const hit = document.createElementNS(NS, 'circle');
+      hit.setAttribute('cx', X(at.east));
+      hit.setAttribute('cy', Y(at.north));
+      hit.setAttribute('r', ART * 0.5);
+      hit.setAttribute('class', 'pin-hit');
+      group.appendChild(hit);
+    }
+    group.addEventListener('pointerenter', () => {
+      tip.textContent = '';
+      tip.appendChild(el('div', 'what', p.pinLabel || p.displayName));
+      const bits = [];
+      if (p.pinLabel && p.displayName && p.pinLabel !== p.displayName) bits.push(p.displayName);
+      bits.push(p.dlc);
+      if (p.kind && p.kind !== 'PointOfInterest') bits.push(p.kind.toLowerCase());
+      if (signpost) bits.push('signpost');
+      else bits.push(done ? 'done' : 'to do');
+      tip.appendChild(el('div', 'meta', bits.join(' · ')));
+
+      const box = svg.getBoundingClientRect();
+      const wrapBox = wrap.getBoundingClientRect();
+      const dotBox = group.getBoundingClientRect();
+      tip.style.display = 'block';
+      tip.style.left = Math.min(
+        Math.max(dotBox.left - wrapBox.left + dotBox.width / 2 - tip.offsetWidth / 2, 4),
+        wrapBox.width - tip.offsetWidth - 4) + 'px';
+      tip.style.top = (dotBox.top - wrapBox.top + 16) + 'px';
+    });
+    group.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+    svg.appendChild(group);
+  }
+
+  if (cutoff !== null) {
+    const newest = newestAt(cutoff);
+
+    if (newest && newest.region === current) {
+      const at = place(region, newest.point);
+      const ring = document.createElementNS(NS, 'circle');
+      ring.setAttribute('cx', X(at.east));
+      ring.setAttribute('cy', Y(at.north));
+      ring.setAttribute('r', size * 1.15);
+      ring.setAttribute('class', 'newest');
+      svg.appendChild(ring);
+    }
+  }
+
+  wrap.appendChild(svg);
+  wrap.appendChild(tip);
+
+  const zoombar = el('div', 'zoombar');
+  const out = el('button', null, '\u2212');
+  out.title = 'Zoom out';
+  out.disabled = zoomStep === 0;
+  out.onclick = () => { zoomStep = Math.max(0, zoomStep - 1); draw(); };
+  const level = el('button', 'level', ZOOMS[zoomStep] + '\u00d7');
+  const into = el('button', null, '+');
+  into.title = 'Zoom in';
+  into.disabled = zoomStep === ZOOMS.length - 1;
+  into.onclick = () => { zoomStep = Math.min(ZOOMS.length - 1, zoomStep + 1); draw(); };
+  zoombar.append(out, level, into);
+  wrap.appendChild(zoombar);
+
+  if (!region.background) {
+    wrap.appendChild(el('div', 'note',
+      'No map picture for this region - the points are drawn on their own. '
+      + 'Build the backgrounds with tools/build_map_backgrounds.py.'));
+  }
+
+  // Drag to pan, in image coordinates so it tracks the pointer exactly whatever the
+  // stage is scaled to.
+  svg.addEventListener('pointerdown', e => {
+    if (ZOOMS[zoomStep] === 1) return;
+    const box = svg.getBoundingClientRect();
+    dragFrom = { x: e.clientX, y: e.clientY, cx: centre.x, cy: centre.y,
+                 perPixel: view[2] / box.width };
+    wrap.classList.add('dragging');
+    svg.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!dragFrom) return;
+    centre.x = dragFrom.cx - (e.clientX - dragFrom.x) * dragFrom.perPixel;
+    centre.y = dragFrom.cy - (e.clientY - dragFrom.y) * dragFrom.perPixel;
+    draw();
+  });
+  const endDrag = () => { dragFrom = null; wrap.classList.remove('dragging'); };
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', endDrag);
+
+  const counted = drawn.filter(p => p.counts);
+  document.getElementById('region-tag').textContent =
+    regionName(region.world) + ' · ' + counted.filter(doneAsOf).length + ' / ' + counted.length;
+}
+
+function renderTabs() {
+  const options = document.getElementById('options');
+  options.textContent = '';
+
+  for (const opt of [
+    { on: follow, label: 'Follow', title: 'While playing, keep the newest completion in view',
+      set: v => follow = v },
+    { on: trail, label: 'Route', title: 'Draw the order the places fell in',
+      set: v => trail = v },
+  ]) {
+    const b = el('button', opt.on ? 'on' : null, opt.label);
+    b.title = opt.title;
+    b.setAttribute('aria-pressed', String(opt.on));
+    b.onclick = () => { opt.set(!opt.on); renderTabs(); draw(); };
+    options.appendChild(b);
+  }
+
+  const box = document.getElementById('regions');
+  box.textContent = '';
+  regions.forEach((region, i) => {
+    const b = el('button', i === current ? 'on' : null, regionName(region.world));
+    b.setAttribute('aria-pressed', String(i === current));
+    b.onclick = () => {
+      current = i; zoomStep = 0; centre = null;
+      renderTabs(); draw();
+    };
+    box.appendChild(b);
+  });
+
+}
+
+/* --------------------------------------------------------------- scrubber */
+
+function renderScrub() {
+  const scrub = document.getElementById('scrub');
+  const slider = document.getElementById('slider');
+
+  if (!timeline.unlocks.length || !timeline.runStartedAt) {
+    scrub.style.display = 'none';
+    return;
+  }
+
+  const t0 = new Date(timeline.runStartedAt).getTime();
+  const last = Math.max(...timeline.unlocks.map(u => new Date(u.timestamp).getTime() - t0));
+
+  scrub.style.display = 'flex';
+  slider.max = String(Math.max(1, last));
+  if (cutoff === null) slider.value = slider.max;
+
+  paintScrubLabels(last);
+}
+
+function paintScrubLabels(last) {
+  const shown = cutoff === null ? last : cutoff;
+  document.getElementById('at').textContent = 'at ' + elapsed(shown);
+
+  // Counted the same way the map is drawn, so the figure and the picture agree: only
+  // completions that still stand, and only those reached by this point in the run.
+  const standing = new Set();
+  for (const region of regions) {
+    for (const p of region.points) {
+      if (p.done && doneAt.has(p.id)) standing.add(p.id);
+    }
+  }
+
+  let reached = 0;
+  for (const id of standing) {
+    if (doneAt.get(id) <= shown) reached += 1;
+  }
+
+  document.getElementById('count').textContent =
+    reached + ' of ' + standing.size + ' placed completions'
+    + (cutoff === null ? ' (live)' : '');
+}
+
+/* ------------------------------------------------------------------- wire */
+
+async function load() {
+  const [map, line] = await Promise.all([
+    fetch('/api/map').then(r => r.json()),
+    fetch('/api/timeline').then(r => r.json()),
+  ]);
+
+  regions = map.regions || [];
+  timeline = line;
+
+  const t0 = timeline.runStartedAt ? new Date(timeline.runStartedAt).getTime() : 0;
+  doneAt = new Map();
+  for (const u of timeline.unlocks) {
+    // Earliest wins: a reload can re-report a completion, and the moment it first
+    // happened is the one the playback should step at.
+    const at = new Date(u.timestamp).getTime() - t0;
+    if (!doneAt.has(u.catalogId)) doneAt.set(u.catalogId, at);
+  }
+
+  document.getElementById('empty')?.remove();
+  renderTabs();
+  renderScrub();
+  draw();
+
+  const fitted = regions.filter(r => r.matrix).length;
+  document.getElementById('credits').innerHTML =
+    'Positions come from the game itself. Placement uses transforms fitted against '
+    + '<a href="https://github.com/witcher3map/witcher3map" target="_blank" rel="noreferrer">witcher3map</a> '
+    + 'by untamed0 and contributors (CC BY-NC-SA 4.0), built from CD Projekt Red\'s map art '
+    + 'under section 9.4 of their User Agreement - personal, non-commercial use only. '
+    + (fitted ? fitted + ' of ' + regions.length + ' regions are calibrated; the rest draw in raw world axes.'
+              : 'No calibration on file, so every region draws in raw world axes.');
+}
+
+document.getElementById('slider').addEventListener('input', e => {
+  cutoff = Number(e.target.value);
+  if (cutoff >= Number(e.target.max)) cutoff = null;
+
+  // Go to whatever just happened. Following across regions is the point of it: a run
+  // leaves Velen for Skellige and comes back, and a view pinned to one region would
+  // simply stop showing anything for stretches at a time.
+  if (follow && cutoff !== null) {
+    const newest = newestAt(cutoff);
+
+    if (newest) {
+      if (newest.region !== current) {
+        current = newest.region;
+        renderTabs();
+      }
+
+      // Only worth moving the view when it is not already showing everything.
+      if (ZOOMS[zoomStep] > 1) {
+        const region = regions[current];
+        const at = place(region, newest.point);
+        centre = region.background
+          ? { x: at.east, y: -at.north }
+          : centre;
+      }
+    }
+  }
+
+  paintScrubLabels(Number(e.target.max));
+  draw();
+});
+
+document.getElementById('play').addEventListener('click', () => {
+  const slider = document.getElementById('slider');
+  const button = document.getElementById('play');
+
+  if (playing) {
+    clearInterval(playing); playing = null; button.textContent = 'Play';
+    return;
+  }
+
+  // Sixty steps across the whole run, so a long playthrough and a short one take the
+  // same few seconds to watch.
+  const span = Number(slider.max);
+  let value = cutoff === null ? 0 : cutoff;
+  button.textContent = 'Pause';
+
+  playing = setInterval(() => {
+    value += span / 60;
+    if (value >= span) {
+      value = span; clearInterval(playing); playing = null; button.textContent = 'Play';
+    }
+    slider.value = String(value);
+    slider.dispatchEvent(new Event('input'));
+  }, 120);
+});
+
+/* The run changes while this page is open, so follow it - but only when the scrubber
+   is parked at the live end. Redrawing under someone who has dragged back to an hour
+   ago would yank the view out from under them. */
+const stream = new EventSource('/api/events');
+stream.onmessage = async () => {
+  if (cutoff !== null) return;
+  await load();
+};
+
+load();
+</script>
+</body>
+</html>

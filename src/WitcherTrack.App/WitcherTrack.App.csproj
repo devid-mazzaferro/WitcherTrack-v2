@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>WitcherTrack</AssemblyName>
+    <RootNamespace>WitcherTrack.App</RootNamespace>
+    <!-- Native AOT is switched on by the release workflow with -p:PublishAot=true.
+         It is left off here because it pulls the ILCompiler package, which would make an
+         ordinary "dotnet build" require network access for no benefit. -->
+    <InvariantTimezone>false</InvariantTimezone>
+    <!-- GameClock's ReadProcessMemory P/Invoke marshals a Span<byte> buffer; the
+         source-generated marshaling code for that shape is unsafe. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Compile the endpoints into static request delegates instead of reflecting over
+         them at startup. Native AOT needs this; keeping it on for ordinary builds means
+         an incompatible endpoint fails here rather than in the release pipeline. -->
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WitcherTrack.Core\WitcherTrack.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The web UI is embedded in the executable so the release is a single file.
+         It deliberately does not live in wwwroot: that folder is claimed by the Web SDK's
+         static asset pipeline, which would try to publish it as loose files alongside the
+         binary and defeat the point. -->
+    <EmbeddedResource Include="WebUI\**\*" />
+    <!-- The catalogue is data, not code: it travels next to the binary so that both
+         "dotnet run" and a published release find it without being told where. -->
+    <Content Include="..\..\data\catalog.json" Link="catalog.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\data\catalog.json')" />
+    <!-- The fitted world-to-map transforms and the region backgrounds, travelling the
+         same way the catalogue does. The pictures are deliberately *not* embedded: they
+         are optional, they are licensed separately (CC BY-NC-SA 4.0, see the map view's
+         credits), and a release should stay runnable without them. -->
+    <Content Include="..\..\data\map\calibration.json" Link="map\calibration.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\data\map\calibration.json')" />
+    <Content Include="..\..\data\map\backgrounds.json" Link="map\backgrounds.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\data\map\backgrounds.json')" />
+    <Content Include="..\..\data\map\*.webp" Link="map\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
