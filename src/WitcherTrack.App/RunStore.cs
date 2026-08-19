@@ -34,6 +34,12 @@ namespace WitcherTrack.App;
 /// What the run had completed when it was last saved, so the dashboard is correct the
 /// moment it opens rather than blank until the game next writes a report.
 /// </param>
+/// <param name="IgtControls">
+/// Every manual start, pause and reset of the in-game clock, with the real time each
+/// happened at. Kept with the run because a speedrun has to be one unbroken session, so
+/// the record of a pause is worth more than the pause costs. Null in a file written before
+/// this existed, which reads as no history rather than as no pauses.
+/// </param>
 /// <param name="IgtSeconds">
 /// In-game time accumulated so far, if the optional clock was ever started. Stored for
 /// the same reason <paramref name="PlaySeconds"/> is: the clock can only accumulate going
@@ -52,7 +58,8 @@ internal sealed record PersistedRun(
     IReadOnlyDictionary<string, PlayerPlace> FinishedAt,
     IReadOnlyList<string> CompletionOrder,
     IReadOnlyList<ManualOverride> Overrides,
-    double IgtSeconds = 0);
+    double IgtSeconds = 0,
+    IReadOnlyList<IgtControlEvent>? IgtControls = null);
 
 /// <summary>Reads and writes the run file.</summary>
 internal static class RunStore
