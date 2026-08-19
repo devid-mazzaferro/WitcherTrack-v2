@@ -411,7 +411,8 @@ static async Task ServeAsync(int port)
 
     // Resumed before anything is ingested, so the report the game sends on its next load
     // lands on top of a run that already knows what it had done and when.
-    if (RunStore.Load() is { } storedRun)
+    PersistedRun? storedRun = RunStore.Load();
+    if (storedRun is not null)
     {
         state.Restore(storedRun);
         Console.WriteLine(
@@ -438,13 +439,23 @@ static async Task ServeAsync(int port)
     {
         gameClock = new GameClock();
 
+        // A resumed run resumes its clock too. Seeded before anything can start it, so the
+        // first press of the button continues the total rather than restarting it.
+        if (storedRun is not null)
+        {
+            gameClock.Seed(TimeSpan.FromSeconds(storedRun.IgtSeconds));
+        }
+
         // The analyzer cannot see that this closure only ever runs on the platform that
         // set it, since the guard above is on the *assignment*, not on every future call
         // of the delegate it assigns - but nothing reaches this lambda body unless that
         // assignment happened, which only happens inside the guard above.
 #pragma warning disable CA1416
+        // The total is reported whether or not the clock is attached: pausing keeps it,
+        // and a dashboard that blanked the moment someone paused would look like the time
+        // had been thrown away. Only the stamping of completions keys on Active.
         state.IgtSource = () => new TrackerState.IgtSample(
-            gameClock.IsRunning, gameClock.IsRunning ? gameClock.Elapsed : null, gameClock.Detail);
+            gameClock.IsRunning, gameClock.Elapsed, gameClock.Detail, gameClock.IsLoading);
 #pragma warning restore CA1416
     }
 
@@ -488,11 +499,18 @@ static async Task ServeAsync(int port)
     // Clears the run back to zero. Meant to be pressed once, before loading the savegame
     // a run starts from - the next full snapshot the reporter sends becomes the new
     // baseline, the same way it does when the tracker starts up for the first time.
+#pragma warning disable CA1416 // gameClock is only ever non-null on Windows; see its assignment above.
     app.MapPost("/api/reset", () =>
     {
         state.Reset();
+
+        // The in-game clock is part of the run, so it goes back to zero with it. This is
+        // the only thing that zeroes it: stopping the clock is a pause, and a new run is
+        // the one moment where throwing the accumulated time away is what was meant.
+        gameClock?.Reset();
         return Results.Ok(state.Snapshot());
     });
+#pragma warning restore CA1416
 
     // Works around a base-game quirk, not a WitcherTrack bug: HasCardInCollection()
     // sometimes reports the Geralt and Ciri hero cards as missing even when the player
@@ -507,9 +525,9 @@ static async Task ServeAsync(int port)
         return Results.Ok(state.Snapshot());
     });
 
-    // Attaches the optional in-game-time clock, resetting its accumulator to zero - the
-    // same moment a player would start an autosplitter alongside loading their save. A
-    // 501 on a non-Windows host is a real answer, not a missing route: the option cannot
+    // Attaches the optional in-game-time clock and carries on from whatever total it
+    // already holds, so stopping it is a pause rather than a discard. A 501 on a
+    // non-Windows host is a real answer, not a missing route: the option cannot
     // work there, so the interface should say so rather than retry.
 #pragma warning disable CA1416 // gameClock is only ever non-null on Windows; see its assignment above.
     app.MapPost("/api/igt/start", () =>
@@ -523,14 +541,30 @@ static async Task ServeAsync(int port)
         }
 
         bool started = gameClock.Start();
+
+        // Nothing was recorded, so nothing would otherwise be pushed, and every open
+        // dashboard would keep showing the clock as it was before this call.
+        state.PublishNow();
         return Results.Json(new IgtStartResponse(started, gameClock.Detail), ApiJsonContext.Default.IgtStartResponse);
     });
+
+    // The clock's own reading, cheap enough to ask for once a second. The dashboard shows
+    // a moving counter, and the state stream cannot feed one: it is published when a
+    // record arrives, and during a loading screen - the one moment the counter must not
+    // move - no records arrive at all. So the display asks rather than guesses.
+    app.MapGet("/api/igt", () => Results.Json(
+        gameClock is null
+            ? new IgtStatusResponse(false, null, 0, "In-game-time tracking needs Windows to read the game's memory.")
+            : new IgtStatusResponse(
+                gameClock.IsRunning, gameClock.IsLoading, gameClock.Elapsed.TotalSeconds, gameClock.Detail),
+        ApiJsonContext.Default.IgtStatusResponse));
 
     // Detaches the clock. Whatever it accumulated stays on every unlock already recorded
     // with it - only the running total for entries still to come stops advancing.
     app.MapPost("/api/igt/stop", () =>
     {
         gameClock?.Stop();
+        state.PublishNow();
         return Results.Ok(state.Snapshot());
     });
 #pragma warning restore CA1416
@@ -871,8 +905,11 @@ internal sealed record SourceStatus(string Name, bool Connected, DateTimeOffset?
 /// </param>
 /// <param name="IgtElapsedSeconds">
 /// The clock's running total right now, independent of whether anything has been
-/// completed yet - the toolbar reads this to show a live counter, the same way an
-/// autosplitter's own timer keeps moving between splits.
+/// completed yet and of whether it is currently attached - pausing keeps the total, so
+/// the toolbar goes on showing where the run stands.
+/// </param>
+/// <param name="IgtLoading">
+/// Whether the game is on a loading screen, or null when the clock is not attached.
 /// </param>
 internal sealed record StateResponse(
     DateTimeOffset GeneratedAt,
@@ -885,7 +922,8 @@ internal sealed record StateResponse(
     int UnlockCount,
     bool IgtActive = false,
     string? IgtDetail = null,
-    double? IgtElapsedSeconds = null);
+    double? IgtElapsedSeconds = null,
+    bool? IgtLoading = null);
 
 /// <summary>The payload behind <c>/api/timeline</c>: the whole run, oldest first.</summary>
 internal sealed record TimelineResponse(DateTimeOffset? RunStartedAt, IReadOnlyList<UnlockEvent> Unlocks);
@@ -1002,6 +1040,13 @@ internal sealed record MapPoint(
     bool Done,
     string Kind = "PointOfInterest");
 
+/// <summary>The payload behind <c>GET /api/igt</c>.</summary>
+/// <param name="Active">Whether the clock is attached and accumulating.</param>
+/// <param name="Loading">Whether the game is on a loading screen, null when not attached.</param>
+/// <param name="ElapsedSeconds">The running total, kept across a pause.</param>
+/// <param name="Detail">The game build it attached to, or why it is not running.</param>
+internal sealed record IgtStatusResponse(bool Active, bool? Loading, double ElapsedSeconds, string? Detail);
+
 /// <summary>The payload behind <c>POST /api/igt/start</c>.</summary>
 /// <param name="Started">
 /// True if a supported game build was found and the clock is now attached and
@@ -1027,6 +1072,7 @@ internal sealed record IgtStartResponse(bool Started, string? Detail);
 [JsonSerializable(typeof(ModeSelection))]
 [JsonSerializable(typeof(TimelineResponse))]
 [JsonSerializable(typeof(IgtStartResponse))]
+[JsonSerializable(typeof(IgtStatusResponse))]
 [JsonSerializable(typeof(MapResponse))]
 [JsonSerializable(typeof(PersistedRun))]
 [JsonSerializable(typeof(Dictionary<string, MapCalibration>))]
