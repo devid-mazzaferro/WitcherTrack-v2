@@ -755,6 +755,26 @@ function WT_OnShrineBuff()
 	WT_Sweep();
 }
 
+/// Called from W3PlayerWitcher.Meditate, once meditation has actually begun.
+///
+/// This one reports nothing of its own: it is a heartbeat. Every other live
+/// hook is a notification about something else that happens to prompt a
+/// re-read, so a point of interest the game has already put out waits for the
+/// next unrelated thing to happen before anyone asks. Meditation is frequent,
+/// and it happens in the gaps - after a camp is cleared, before whatever comes
+/// next - which is exactly where that wait is longest.
+///
+/// Hooked at the beginning of meditation rather than at its end, because the
+/// end lives in the meditation state files, which this mod does not ship, and
+/// the one end-of-meditation callback that does live in playerWitcher.ws
+/// (MeditationRestoring) cannot be shown from the files here to run only once
+/// per meditation. A hook that might fire per simulated hour would put a full
+/// sweep in the log for each of them.
+function WT_OnMeditation()
+{
+	WT_Sweep();
+}
+
 /// Called from CR4HudModuleJournalUpdate.AddMapPinUpdate.
 /// A pin notification means the pin changed; the authoritative state is
 /// read back from the map manager rather than assumed.
