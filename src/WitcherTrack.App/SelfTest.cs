@@ -45,6 +45,8 @@ public static class SelfTest
         Check(failures, "A catalogue carries a point of interest's world path through", CatalogCarriesWorldPath);
         Check(failures, "A catalogue merges every dump it is given", CatalogMergesDumps);
         Check(failures, "The in-game-time clock recognises every known game build", GameBuildsAreDetected);
+        Check(failures, "In-game time excludes loading screens and unreadable intervals", InGameTimeExcludesLoading);
+        Check(failures, "A paused in-game clock keeps its total", InGameTimeSurvivesAPause);
 
         Console.WriteLine();
 
@@ -667,6 +669,50 @@ public static class SelfTest
         // A version that is none of the five known builds is reported as unrecognised
         // rather than guessed at.
         AssertEqual(null, GameBuildDetector.Detect("1.0.0.0", @"C:\Witcher 3\bin\x64\witcher3.exe"), "unrecognised build");
+    }
+
+    private static void InGameTimeExcludesLoading()
+    {
+        var accumulator = new IgtAccumulator();
+        var second = TimeSpan.FromSeconds(1);
+
+        // Three seconds of play, two of loading, one more of play. Six seconds passed and
+        // four of them count, which is the whole point of reading the flag at all.
+        foreach (bool notLoading in new[] { true, true, true, false, false, true })
+        {
+            accumulator.Sample(second, notLoading);
+        }
+
+        AssertEqual(TimeSpan.FromSeconds(4), accumulator.Elapsed, "in-game time");
+        AssertEqual(false, accumulator.Loading, "the last reading");
+
+        // A failed read charges nothing and does not pretend to know what the game was
+        // doing. A tracker left running with the game closed would otherwise quietly
+        // accumulate hours of in-game time nobody played.
+        accumulator.Sample(TimeSpan.FromHours(3), null);
+        AssertEqual(TimeSpan.FromSeconds(4), accumulator.Elapsed, "in-game time after a failed read");
+        AssertEqual(false, accumulator.Loading, "the last reading is left alone by a failed read");
+    }
+
+    private static void InGameTimeSurvivesAPause()
+    {
+        var accumulator = new IgtAccumulator();
+        accumulator.Sample(TimeSpan.FromSeconds(30), true);
+
+        // Stopping the clock forgets what the game was doing but not how long it was
+        // played: pausing a run at the end of an evening and resuming it the next day has
+        // to continue the total, or the option is a trap rather than a feature.
+        accumulator.Forget();
+        AssertEqual(TimeSpan.FromSeconds(30), accumulator.Elapsed, "the total across a pause");
+        AssertEqual(null, accumulator.Loading, "the loading flag after a pause");
+
+        accumulator.Sample(TimeSpan.FromSeconds(10), true);
+        AssertEqual(TimeSpan.FromSeconds(40), accumulator.Elapsed, "the total after resuming");
+
+        // Only a new run zeroes it, which is what seeding is for - and it is also how a
+        // run resumed from disk gets yesterday's total back.
+        accumulator.Seed(TimeSpan.Zero);
+        AssertEqual(TimeSpan.Zero, accumulator.Elapsed, "the total after a reset");
     }
 
     // ------------------------------------------------------------------ fixture
