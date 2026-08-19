@@ -136,6 +136,41 @@ internal sealed class TrackerState
     /// </summary>
     public Func<IgtSample>? IgtSource { get; set; }
 
+    /// <summary>
+    /// Every deliberate start, pause and reset of the in-game clock, oldest first.
+    /// </summary>
+    private readonly List<IgtControlEvent> _igtControls = [];
+
+    /// <summary>
+    /// Records that the in-game clock was started, paused or reset by hand, and says so on
+    /// the console.
+    /// </summary>
+    /// <remarks>
+    /// A run submitted for validation has to be one unbroken session, so the fact that the
+    /// clock can be paused is only acceptable if pausing leaves a mark. Both halves matter:
+    /// the console line is the contemporaneous record, and the entry kept with the run is
+    /// what survives to be read afterwards.
+    /// </remarks>
+    public void NoteIgtControl(IgtControl action, TimeSpan elapsed)
+    {
+        var entry = new IgtControlEvent(DateTimeOffset.UtcNow, action, elapsed.TotalSeconds);
+
+        lock (_gate)
+        {
+            _igtControls.Add(entry);
+        }
+
+        // Printed in local time, because this line exists to be read by a person and
+        // compared against a recording, while the stored instant stays on the same clock as
+        // every other timestamp in the run.
+        Console.WriteLine(
+            $"[{entry.At.ToLocalTime():yyyy-MM-dd HH:mm:ss zzz}] in-game timer "
+            + action.ToString().ToLowerInvariant()
+            + $" at {elapsed:h\\:mm\\:ss}");
+
+        RunChanged?.Invoke();
+    }
+
     /// <summary>Every trackable entry. Populated from the catalogue files at startup.</summary>
     public List<CatalogEntry> Catalog { get; } = [];
 
@@ -268,7 +303,7 @@ internal sealed class TrackerState
     {
         lock (_gate)
         {
-            return new TimelineResponse(_runStartedAt, [.. _unlocks]);
+            return new TimelineResponse(_runStartedAt, [.. _unlocks], [.. _igtControls]);
         }
     }
 
@@ -323,6 +358,10 @@ internal sealed class TrackerState
             _runStartedAt = null;
             _playSeconds = 0;
             _lastActivityAt = null;
+
+            // A new run gets a new record. What the previous one did with its clock
+            // belongs to the previous one.
+            _igtControls.Clear();
         }
 
         Publish();
@@ -611,7 +650,8 @@ internal sealed class TrackerState
                 [.. _overrides.Values],
                 // Taken from the clock rather than held here, so there is one owner of the
                 // total and no chance of the file and the clock disagreeing.
-                IgtSource?.Invoke().Elapsed?.TotalSeconds ?? 0d);
+                IgtSource?.Invoke().Elapsed?.TotalSeconds ?? 0d,
+                [.. _igtControls]);
         }
     }
 
@@ -658,6 +698,11 @@ internal sealed class TrackerState
 
             _completionOrder.Clear();
             _completionOrder.AddRange(run.CompletionOrder);
+
+            // Carried across sessions on purpose: a pause taken last night is exactly the
+            // kind of thing a run's own record must not quietly forget overnight.
+            _igtControls.Clear();
+            _igtControls.AddRange(run.IgtControls ?? []);
 
             _overrides.Clear();
             foreach (ManualOverride correction in run.Overrides)
