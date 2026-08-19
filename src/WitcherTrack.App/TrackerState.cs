@@ -171,6 +171,27 @@ internal sealed class TrackerState
         RunChanged?.Invoke();
     }
 
+    /// <summary>
+    /// True when this session began with no stored run and nobody asked for that.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The run file lives beside the executable, so updating the tracker by extracting it
+    /// into a different folder leaves the run behind in the old one. Nothing looks wrong
+    /// afterwards: the game's next report re-asserts every completion, the totals come back
+    /// correct, and only the timings are gone - re-dated to the moment the tracker was
+    /// reopened, because a report says <em>that</em> something is done and never when.
+    /// </para>
+    /// <para>
+    /// Cleared by <see cref="Reset"/>: starting a new run on purpose is the one case where
+    /// no stored history is exactly what was meant.
+    /// </para>
+    /// </remarks>
+    public bool StartedFresh { get; private set; }
+
+    /// <summary>Records that no stored run was found at startup.</summary>
+    public void NoteFreshStart() => StartedFresh = true;
+
     /// <summary>Every trackable entry. Populated from the catalogue files at startup.</summary>
     public List<CatalogEntry> Catalog { get; } = [];
 
@@ -363,6 +384,9 @@ internal sealed class TrackerState
             // belongs to the previous one.
             _igtControls.Clear();
         }
+
+        // Asked for, so not the accident StartedFresh exists to point out.
+        StartedFresh = false;
 
         Publish();
         RunChanged?.Invoke();
@@ -780,7 +804,8 @@ internal sealed class TrackerState
             return new StateResponse(
                 DateTimeOffset.UtcNow, modes, Catalog.Count, states.Count,
                 _activeModeId, recent, _runStartedAt, _unlocks.Count,
-                igt?.Active ?? false, igt?.Detail, igt?.Elapsed?.TotalSeconds, igt?.Loading);
+                igt?.Active ?? false, igt?.Detail, igt?.Elapsed?.TotalSeconds, igt?.Loading,
+                StartedFresh);
         }
     }
 
