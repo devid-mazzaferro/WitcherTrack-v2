@@ -583,14 +583,19 @@ function renderDashboard(state, mode) {
   // does. Windows only, and only while the game is running - meant to be pressed before
   // loading the savegame a run starts from, the same moment an autosplitter itself would
   // be started.
-  const igt = el("button", "btn igt", state.igtActive
-    ? "Stop in-game timer · " + clock(state.igtElapsedSeconds || 0)
-    : "Start in-game timer");
+  const igt = el("button", "btn igt", igtLabel({
+    active: state.igtActive,
+    elapsedSeconds: state.igtElapsedSeconds || 0,
+    loading: state.igtLoading,
+  }));
   igt.title = state.igtDetail ||
     "Reads the game's own loading-screen flag out of its memory - the same signal the community's speedrun autosplitter uses. Windows only, and only while Witcher 3 is running.";
   igt.onclick = async () => {
     if (state.igtActive) {
       await fetch("/api/igt/stop", { method: "POST" });
+      // Read back rather than assume: the button has to show the paused total, and the
+      // press must be visibly answered even if the pushed state is a moment behind.
+      await readIgt();
       return;
     }
     const res = await fetch("/api/igt/start", { method: "POST" });
@@ -599,6 +604,7 @@ function renderDashboard(state, mode) {
       alert("Could not start the in-game-time clock: " + (body.detail || "unknown reason") +
         "\n\nMake sure Witcher 3 is running first, then try again.");
     }
+    await readIgt();
   };
   // One tidy right-aligned group - see .toolbar. "Fix Gwent" lives on the Gwent Cards
   // tile below instead, next to the number it actually affects.
@@ -799,34 +805,51 @@ async function render(state) {
   renderDashboard(state, mode);
 }
 
-/* A new state is only pushed when the run changes, which is far too rarely for a
-   clock - it would sit frozen between pickups. The server stays the only source of
-   truth for whether the clock runs and what it read; this just fills in the seconds
-   since that reading arrived, and every push corrects any drift. */
-let igtAt = null, igtSince = null;
+/* A new state is only pushed when the run changes, which is far too rarely for a clock:
+   it would sit frozen between pickups. This used to fill the gap by counting up locally
+   from the last reading, which is wrong in the one place it matters - a loading screen
+   pushes nothing, so the display counted straight through exactly the time the server was
+   busy excluding, and a paused clock went on ticking forever because nothing ever arrived
+   to say it had stopped. So the display asks instead of guessing: /api/igt is one small
+   reading, once a second, and only while the clock is attached. */
+let igtRunning = false;
 
-function paintIgt() {
+function igtLabel(igt) {
+  const time = clock(igt.elapsedSeconds || 0);
+  if (igt.active) {
+    // The loading marker is not decoration: it is the only way to see from outside the
+    // game that the flag being read is the right one for this build.
+    return "Stop in-game timer · " + time + (igt.loading ? " · loading" : "");
+  }
+  return igt.elapsedSeconds > 0 ? "Resume in-game timer · " + time : "Start in-game timer";
+}
+
+function paintIgt(igt) {
   const button = document.querySelector(".btn.igt");
-  if (!button || igtAt === null) return;
-  button.textContent = "Stop in-game timer · " + clock(igtAt + (Date.now() - igtSince) / 1000);
+  if (button) { button.textContent = igtLabel(igt); }
+}
+
+async function readIgt() {
+  try {
+    const igt = await (await fetch("/api/igt")).json();
+    igtRunning = igt.active;
+    paintIgt(igt);
+  } catch {
+    // The server is gone; the stream's own error handler is what says so.
+  }
 }
 
 const stream = new EventSource("/api/events");
 stream.onmessage = e => {
   const state = JSON.parse(e.data);
-  if (state.igtActive) {
-    igtAt = state.igtElapsedSeconds || 0;
-    igtSince = Date.now();
-  } else {
-    igtAt = igtSince = null;
-  }
+  igtRunning = state.igtActive;
   render(state);
 };
 stream.onerror = () => {
   document.getElementById("status").textContent = "disconnected - is WitcherTrack still running?";
 };
 
-setInterval(paintIgt, 1000);
+setInterval(() => { if (igtRunning) { readIgt(); } }, 1000);
 </script>
 </body>
 </html>
