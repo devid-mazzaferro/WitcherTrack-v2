@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<!--
+  Checklist.
+
+  Its own page rather than a block on the dashboard, for the same reason the map is: it is
+  something to sit with while playing, not something to glance at. The dashboard is rebuilt
+  from scratch on every pushed state, and a search box living inside it lost the caret
+  mid-word whenever the game reported anything.
+
+  Everything here is read-only. The mode switch changes what this page lists and nothing
+  else: the run's own mode is chosen on the dashboard, and looking up Blood and Wine's
+  remaining diagrams in the middle of a base-game run must not quietly change what the run
+  is counting.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WitcherTrack - checklist</title>
+<style>
+  /* Same industrial palette as the dashboard and the map. */
+  :root {
+    color-scheme: dark;
+    --page:        #101214;
+    --surface:     #171a1e;
+    --hairline:    #24272c;
+    --axis:        #383c43;
+    --ink:         #e6e9ec;
+    --ink-2:       #9aa3ad;
+    --ink-muted:   #6c747c;
+    --accent:      #b9c6d1;
+    --border:      #30353c;
+    --hover-bg:    #1d2126;
+    --switch-on:   #20242a;
+    --series-poi:  #c98500;
+    --done:        #199e70;   /* the same green the map uses for a cleared point */
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 1.75rem 2.5rem 2.5rem; background: var(--page); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .page { max-width: 1500px; margin: 0 auto; }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+            flex-wrap: wrap; padding-bottom: 1.1rem; margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--hairline); }
+  h1 { font-size: 1rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+       margin: 0; display: flex; align-items: baseline; gap: .6rem; }
+  h1 .tag { font-size: .68rem; letter-spacing: .06em; color: var(--ink-muted); text-transform: none; }
+  .btn { all: unset; cursor: pointer; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase;
+         color: var(--ink-2); border: 1px solid var(--border); border-radius: 6px; padding: .45rem .85rem; }
+  .btn:hover, .btn:focus-visible { color: var(--ink); border-color: #454b53; }
+
+  .switch { display: inline-flex; border: 1px solid var(--border); border-radius: 6px;
+            overflow: hidden; flex-wrap: wrap; }
+  .switch button { all: unset; cursor: pointer; padding: .35rem .8rem; font-size: .72rem;
+                   letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2); }
+  .switch button:hover { color: var(--ink); }
+  .switch button.on { background: var(--switch-on); color: var(--ink); }
+
+  .controls { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
+              margin-bottom: 1rem; }
+  h2.section { font-size: .78rem; letter-spacing: .12em; text-transform: uppercase;
+               color: var(--ink-2); margin: 0 0 .25rem; font-weight: 600; }
+  .section-note { font-size: .78rem; color: var(--ink-muted); margin: 0 0 1rem; }
+  .empty { color: var(--ink-muted); font-size: .85rem; padding: 2rem 0; }
+
+/* ---------- what's left ---------- */
+  /* A checklist, not a report: the rows are things to go and do, so they read as a list
+     of open boxes and vanish as they are done. Grouped in collapsed sections because a
+     base-game run starts with more than a thousand of them, and a wall of that is not a
+     list anyone reads. */
+  .check-tools { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+                 margin: 0 0 1rem; }
+  .check-tools input { flex: 1 1 18rem; min-width: 0; background: var(--surface);
+                       color: var(--ink); border: 1px solid var(--border); border-radius: 8px;
+                       padding: .55rem .8rem; font: inherit; font-size: .88rem; }
+  .check-tools input:focus-visible { outline: none; border-color: var(--accent); }
+  .check-tools .found { font-size: .78rem; color: var(--ink-muted);
+                        font-variant-numeric: tabular-nums; }
+
+  .pack { margin: 0 0 1.5rem; }
+  .pack > h3 { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+               color: var(--ink-2); margin: 0 0 .6rem; font-weight: 600; }
+
+  details.group { border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+                  margin-bottom: .5rem; }
+  details.group > summary { cursor: pointer; list-style: none; padding: .7rem .9rem;
+                            display: flex; align-items: center; gap: .6rem;
+                            font-size: .85rem; }
+  details.group > summary::-webkit-details-marker { display: none; }
+  details.group > summary::before { content: "▸"; color: var(--ink-muted); font-size: .7rem;
+                                    transition: transform .12s; }
+  details.group[open] > summary::before { transform: rotate(90deg); }
+  details.group > summary img { width: 20px; height: 20px; opacity: .85; flex: none; }
+  details.group > summary .count { margin-left: auto; color: var(--ink-muted);
+                                   font-variant-numeric: tabular-nums; font-size: .78rem; }
+  details.group > summary:hover { background: var(--hover-bg); }
+
+  ul.todos { list-style: none; margin: 0; padding: .2rem 0 .5rem;
+             border-top: 1px solid var(--hairline); }
+  ul.todos li { display: flex; align-items: center; gap: .6rem; padding: .3rem .9rem;
+                font-size: .84rem; }
+  ul.todos li:hover { background: var(--hover-bg); }
+  ul.todos .box { flex: none; width: 14px; height: 14px; border-radius: 3px;
+                  border: 1px solid var(--axis); display: flex; align-items: center;
+                  justify-content: center; font-size: 10px; line-height: 1; }
+  /* Ticked rows stay in place and step back: the eye should land on what is left while
+     the ones already done still say so. No strikethrough - these are names to read, and
+     a line through 1,500 of them is noise. */
+  ul.todos li.done .box { border-color: var(--done); color: var(--done); }
+  ul.todos li.done .what { color: var(--ink-muted); }
+  ul.todos li.done img { opacity: .35; filter: grayscale(1); }
+  /* Pin glyphs are square; the game's item artwork is 64x128 for anything worn or
+     wielded. One box, contained rather than stretched, so a sword and a bandit camp sit
+     on the same baseline and neither is squashed. */
+  ul.todos img { width: 26px; height: 32px; flex: none; opacity: .9;
+                 object-fit: contain; }
+  ul.todos .what { color: var(--ink); }
+  ul.todos .meta { color: var(--ink-muted); font-size: .76rem; }
+  /* The game's own name for a pin. Eleven Abandoned Sites in Toussaint are one row
+     repeated eleven times without it: the pin type and the region are all a point of
+     interest has, and neither tells one from another. Set quiet and monospaced because it
+     is a key to look something up by, not prose. */
+  ul.todos .key { color: var(--ink-muted); opacity: .65; font-size: .7rem;
+                  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  /* A group whose members exclude one another: doing either is enough, and saying so is
+     the difference between a checklist and a lie. */
+  ul.todos .either { color: var(--series-poi); font-size: .72rem; letter-spacing: .04em;
+                     text-transform: uppercase; }
+  ul.todos .see { margin-left: auto; flex: none; font-size: .72rem; letter-spacing: .04em;
+                  text-transform: uppercase; color: var(--ink-2); text-decoration: none;
+                  border: 1px solid var(--border); border-radius: 5px; padding: .2rem .5rem; }
+  ul.todos .see:hover, ul.todos .see:focus-visible { color: var(--ink); border-color: #454b53; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <h1>Checklist <span class="tag" id="mode-tag"></span></h1>
+    <div style="display:flex; gap:.6rem; flex-wrap:wrap">
+      <a class="btn" href="/map">Map</a>
+      <a class="btn" href="/">Back to dashboard</a>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="switch" id="modes"></div>
+  </div>
+
+  <div id="body"><div class="empty">Loading...</div></div>
+</div>
+
+<script src="/icons.js"></script>
+<script>
+const KIND_LABELS = {
+  Quest: "Quests", PointOfInterest: "Points of Interest",
+  Diagram: "Diagrams", Formula: "Formulae", GwentCard: "Gwent Cards",
+};
+
+let remaining = [];
+let remainingGroups = {};   // mutual-exclusion groups, and how many more each asks for
+let remainingFrom = null;   // the state signature the list was fetched at
+let checkQuery = "";
+let showDone = true;        // a checklist that hid what you had ticked would be a to-do list
+let modesCatalog = [];
+let viewing = null;         // the mode being looked at, which need not be the run's own
+let repaint = null;         // set by buildChecklist, so a live update redraws in place
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+/* ------------------------------------------------------------- what's left */
+
+/* The tracker has always known what is missing and never said it.
+ *
+ * The totals are a denominator and the chart is what already happened; neither answers
+ * the question in front of someone mid-run, which is what is left to go and do. The
+ * server sends every content pack and this filters by the mode's own scope, so switching
+ * modes costs no round trip.
+ *
+ * Points of interest are the one kind with no name of their own: the game hands out map
+ * pins, not titles, so 433 of the 434 carry an identifier where a name would be. What a
+ * person can actually recognise them by is the pin type and the region, so that is what
+ * a row shows, and "see on map" is what answers *which* Bandit Camp.
+ */
+
+const KIND_ORDER = ["Quest", "PointOfInterest", "Diagram", "Formula", "GwentCard"];
+
+const PACK_NAMES = { base: "Base game", hos: "Hearts of Stone", baw: "Blood and Wine" };
+const PACK_ORDER = ["base", "hos", "baw"];
+
+/** Case, accent and punctuation all ignored, so "beann'shie" finds "Beann'shie". */
+function foldForSearch(text) {
+  return (text || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+/** Everything a row can be found by, including the things it does not print. */
+function searchKey(entry) {
+  return foldForSearch([
+    entry.displayName,
+    entry.regionLabel,
+    entry.region,
+    entry.world ? regionName(entry.world) : "",
+    // The identifier is searchable but not shown: it is how a point of interest is told
+    // from its 51 identical siblings, and typing it is sometimes the only way.
+    entry.id,
+  ].join(" "));
+}
+
+/* What a set of rows is worth, done and in total.
+ *
+ * Rows and objectives are not the same number. The two halves of The Paths of Destiny are
+ * both listed while neither is finished, because either will do, and together they are
+ * worth one - so counting rows would put every heading one above the totals at the top of
+ * the page and leave nobody able to tell which figure was wrong. */
+function tally(entries) {
+  let done = 0;
+  let total = 0;
+  const seen = new Set();
+
+  for (const entry of entries) {
+    if (!entry.groupId) {
+      total += 1;
+      if (entry.done) done += 1;
+      continue;
+    }
+    if (seen.has(entry.groupId)) continue;
+    seen.add(entry.groupId);
+
+    // A finished group is worth what it asked for; an open one is worth the allowance the
+    // server sent, however many of its members are on screen.
+    const members = entries.filter(e => e.groupId === entry.groupId);
+    const won = members.filter(e => e.done).length;
+    total += won + (remainingGroups[entry.groupId] ?? 0);
+    done += won;
+  }
+
+  return { done, total };
+}
+
+/** "3/48 done", the same shape everywhere it appears. */
+function scoreline(entries) {
+  const { done, total } = tally(entries);
+  return done + "/" + total + " done";
+}
+
+function checklistRow(entry) {
+  const li = el("li", entry.done ? "done" : null);
+  const box = el("span", "box");
+  if (entry.done) box.textContent = "✓";
+  li.appendChild(box);
+
+  // Three sources, in order of how much they say. A diagram or a formula has the game's
+  // own inventory artwork for the very item it makes, served one file at a time. A point
+  // of interest has the drawing for its pin type. Everything else falls back to the icon
+  // its category already uses on the chart and the tiles.
+  const art = entry.icon ? "/icon/" + encodeURIComponent(entry.icon)
+    : (entry.kind === "PointOfInterest" && PIN_ICONS[entry.region])
+    || CATEGORY_ICONS[entry.kind] || PIN_ICON_FALLBACK;
+
+  if (art) {
+    const img = el("img");
+    img.src = art;
+    img.alt = "";
+    // Off-screen rows are the common case here: a thousand of them sit inside closed
+    // sections, and none of their artwork is worth a request until someone opens one.
+    img.loading = "lazy";
+    li.appendChild(img);
+  }
+
+  const named = entry.kind === "PointOfInterest"
+    ? (entry.regionLabel || entry.displayName)
+    : entry.displayName;
+  li.appendChild(el("span", "what", named));
+
+  const bits = [];
+  if (entry.world) bits.push(regionName(entry.world));
+  if (entry.kind === "Quest" && entry.region) bits.push(entry.region);
+  if (bits.length) li.appendChild(el("span", "meta", bits.join(" \u00b7 ")));
+
+  // Points of interest share their name with every sibling of the same type, so the
+  // identifier is the only thing on the row that says which one this is.
+  if (entry.kind === "PointOfInterest") li.appendChild(el("span", "key", entry.id));
+
+  if (entry.groupId) {
+    const wanted = remainingGroups[entry.groupId] ?? 1;
+    const either = el("span", "either", wanted === 1 ? "either one" : wanted + " of these");
+    either.title = "These exclude one another: finishing one leaves the other permanently inactive, so only one of them counts.";
+    li.appendChild(either);
+  }
+
+  li.title = entry.id;
+
+  if (entry.mapped) {
+    const see = el("a", "see", "See on map");
+    see.href = "/map#focus=" + encodeURIComponent(entry.id);
+    see.title = "Open the map turned to this point";
+    li.appendChild(see);
+  }
+
+  return li;
+}
+
+/** One collapsible section: a kind, within a content pack when the mode spans several. */
+function checklistGroup(kind, entries, openIt) {
+  const box = el("details", "group");
+  box.open = openIt;
+
+  const head = el("summary");
+  const art = CATEGORY_ICONS[kind];
+  if (art) { const img = el("img"); img.src = art; img.alt = ""; head.appendChild(img); }
+  head.appendChild(el("span", null, KIND_LABELS[kind] || kind));
+  head.appendChild(el("span", "count", scoreline(entries)));
+  box.appendChild(head);
+
+  const list = el("ul", "todos");
+  for (const entry of entries) list.appendChild(checklistRow(entry));
+  box.appendChild(list);
+
+  return box;
+}
+
+/** Sorted the way the list is read: by region first for pins, by name for everything else. */
+function checklistSort(a, b) {
+  if (a.kind === "PointOfInterest" && b.kind === "PointOfInterest") {
+    const ra = a.world ? regionName(a.world) : "";
+    const rb = b.world ? regionName(b.world) : "";
+    if (ra !== rb) return ra.localeCompare(rb);
+    const la = a.regionLabel || a.displayName, lb = b.regionLabel || b.displayName;
+    if (la !== lb) return la.localeCompare(lb);
+    return a.id.localeCompare(b.id);
+  }
+  return a.displayName.localeCompare(b.displayName);
+}
+
+function buildChecklist(scope) {
+  const wrap = el("div");
+  wrap.appendChild(el("p", "section-note",
+    "Everything this mode counts. Diagrams and formulae carry the game's own artwork for "
+    + "the item they make; points of interest carry their pin's, and can be opened on the map."));
+
+  const tools = el("div", "check-tools");
+  const search = el("input");
+  search.type = "search";
+  search.placeholder = "Search by name...";
+  search.value = checkQuery;
+  search.setAttribute("aria-label", "Search the checklist");
+
+  // Late in a run the finished rows are most of the list, so they can be put away - but
+  // they are shown by default, because a box you can never see ticked is decoration.
+  const toggle = el("div", "switch");
+  const flip = el("button", showDone ? "on" : null, "Show done");
+  flip.setAttribute("aria-pressed", String(showDone));
+  flip.title = "Keep the entries this run has already finished in the list";
+  flip.onclick = () => { showDone = !showDone; draw(); };
+  toggle.appendChild(flip);
+
+  const found = el("span", "found");
+  tools.append(search, toggle, found);
+  wrap.appendChild(tools);
+
+  const body = el("div");
+  wrap.appendChild(body);
+
+  function paint() {
+    body.textContent = "";
+
+    const query = foldForSearch(checkQuery);
+    const inScope = remaining.filter(entry => scope.includes(entry.dlc));
+    const matching = inScope
+      .filter(entry => showDone || !entry.done)
+      .filter(entry => !query || searchKey(entry).includes(query));
+
+    // The score is always the mode's own, whatever is being shown: filtering the list is
+    // a way of looking at the run, not a way of changing what it counts.
+    found.textContent = scoreline(inScope)
+      + (query ? " · " + matching.length + " rows match" : "");
+
+    if (!matching.length) {
+      body.appendChild(el("p", "empty",
+        query ? "Nothing matches that."
+        : showDone ? "Nothing here yet."
+        : "Nothing left to do. That is the whole mode finished."));
+      return;
+    }
+
+    // A search is a small answer and should be open; the full list is a thousand rows and
+    // must not be.
+    const openIt = query.length > 0;
+
+    // Only a mode that spans several content packs needs them named. With one pack the
+    // heading would say the same word on every section.
+    const packs = scope.length > 1
+      ? PACK_ORDER.filter(pack => scope.includes(pack))
+      : [null];
+
+    for (const pack of packs) {
+      const inPack = pack ? matching.filter(e => e.dlc === pack) : matching;
+      if (!inPack.length) continue;
+
+      const section = el("div", "pack");
+
+      if (pack) {
+        section.appendChild(el("h3", null, PACK_NAMES[pack] + " \u00b7 " + scoreline(inPack)));
+      }
+
+      for (const kind of KIND_ORDER) {
+        const entries = inPack.filter(e => e.kind === kind).sort(checklistSort);
+        if (entries.length) section.appendChild(checklistGroup(kind, entries, openIt));
+      }
+
+      body.appendChild(section);
+    }
+  }
+
+  let typing = null;
+  search.addEventListener("input", () => {
+    checkQuery = search.value;
+    // A keystroke should not rebuild a thousand rows; a pause of a breath should.
+    clearTimeout(typing);
+    typing = setTimeout(paint, 120);
+  });
+
+  // Handed to the page so a live update can redraw the rows without rebuilding the
+  // controls above them, which is what keeps a half-typed search alive.
+  repaint = paint;
+
+  paint();
+  return wrap;
+}
+
+/* -------------------------------------------------------------------- wire */
+
+function renderModes() {
+  const box = document.getElementById("modes");
+  box.textContent = "";
+  for (const mode of modesCatalog) {
+    const b = el("button", mode.id === viewing ? "on" : null, mode.name);
+    b.setAttribute("aria-pressed", String(mode.id === viewing));
+    b.title = "List what is left for " + mode.name + ". This changes only what is shown here.";
+    b.onclick = () => { viewing = mode.id; draw(); };
+    box.appendChild(b);
+  }
+}
+
+function draw() {
+  renderModes();
+  const info = modesCatalog.find(m => m.id === viewing);
+  document.getElementById("mode-tag").textContent = info ? info.name : "";
+
+  const body = document.getElementById("body");
+  body.textContent = "";
+  repaint = null;
+  body.appendChild(buildChecklist(info ? info.scope : ["base"]));
+}
+
+async function load(first) {
+  const state = await (await fetch("/api/state")).json();
+
+  if (!modesCatalog.length) {
+    modesCatalog = await (await fetch("/api/modes")).json();
+  }
+
+  // What is left moves in both directions, so the count of completions is the wrong
+  // trigger: it only ever grows, and reloading an earlier save puts things back on the
+  // list without it changing at all. The resolved totals do move both ways.
+  const signature = state.modes.map(m => m.completed).join(",") + "/" + state.catalogSize;
+  const moved = signature !== remainingFrom;
+
+  if (moved) {
+    const left = await (await fetch("/api/checklist")).json();
+    remaining = left.entries || [];
+    remainingGroups = left.groups || {};
+    remainingFrom = signature;
+  }
+
+  if (first) {
+    // Start on the run's own mode; the fullest one stands in when none has been chosen.
+    viewing = state.activeModeId || (modesCatalog[modesCatalog.length - 1] || {}).id;
+    draw();
+    return;
+  }
+
+  // Repaint the rows in place rather than rebuilding the page: the search box keeps its
+  // text and its caret, which is the whole reason this is not on the dashboard.
+  if (moved && repaint) repaint();
+}
+
+const stream = new EventSource("/api/events");
+stream.onmessage = () => load(false);
+stream.onerror = () => {
+  document.getElementById("mode-tag").textContent = "disconnected - is WitcherTrack still running?";
+};
+
+load(true);
+</script>
+</body>
+</html>
