@@ -65,10 +65,9 @@ view and does count in the 300% view.
 | `all300` | all three, combined |
 
 > **Diagrams and formulae are filed by a list kept by hand.** The game reports a content
-> pack for quests and nothing at all for schematics, so the sixty-five Blood and Wine
-> diagrams and the twenty-nine Hearts of Stone ones are listed by identifier and everything
-> else counts as base game. No formula appears on either list, so all of them count as
-> base game.
+> pack for quests and nothing at all for schematics, so they are listed by identifier and
+> everything else counts as base game. Blood and Wine has ninety-six - sixty-five diagrams,
+> plus the armour dyes and the mutagen transmutators - and Hearts of Stone has thirty.
 
 The game can be started directly into either with a pre-made Geralt who already knows a number 
 of diagrams and formulae; because the tracker reads real game state rather than assuming a 
