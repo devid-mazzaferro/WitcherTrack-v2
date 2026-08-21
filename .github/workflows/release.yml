@@ -50,23 +50,25 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path mod/modWitcherTrack -DestinationPath modWitcherTrack.zip
 
-      # Laid out the way README.md documents it: the executable, a data folder beside
-      # it, and the reporter as its own zip to drop into the game's Mods folder. The
-      # map artwork is part of this - without it the map view draws points on nothing.
+      # The executable carries the catalogue, the map artwork and the interface, so the
+      # download is the binary, the reporter to drop into the game's Mods folder, and the
+      # notes. No data folder: one beside the executable would override what is inside it,
+      # which is a thing to do deliberately after a game update, not by default.
       - name: Assemble the download
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path bundle/data/map -Force | Out-Null
+          New-Item -ItemType Directory -Path bundle -Force | Out-Null
           Copy-Item publish/WitcherTrack.exe bundle/
-          Copy-Item publish/catalog.json     bundle/data/
-          Copy-Item publish/map/*            bundle/data/map/
           Copy-Item INSTALL.md               bundle/
           Copy-Item modWitcherTrack.zip      bundle/
           Get-ChildItem bundle -Recurse -File | Select-Object FullName, Length
           Compress-Archive -Path bundle/* -DestinationPath WitcherTrack-win-x64.zip
 
-      # A release that cannot find its own data is the failure this catches: the layout
-      # above is a copy of a copy, and nothing else checks it before a user does.
+      # A release that cannot find its own data is the failure this catches, and with the
+      # data inside the binary it is the binary that has to be asked. The bundle folder
+      # holds no data folder at all, so this runs the same way a downloader's copy will:
+      # the selftest reads the catalogue, the map transforms, the artwork and the licence
+      # out of the executable, and fails if any of them was left out of the build.
       - name: Check the bundle runs and finds everything
         shell: pwsh
         working-directory: bundle
@@ -74,8 +76,8 @@ jobs:
           $out = ./WitcherTrack.exe selftest
           $out
           if ($LASTEXITCODE -ne 0) { throw "selftest failed in the assembled bundle" }
-          if (-not (Test-Path data/catalog.json))      { throw "catalog.json missing from the bundle" }
-          if (-not (Test-Path data/map/velen.webp))    { throw "map artwork missing from the bundle" }
+          if (Test-Path data) { throw "the bundle should carry no data folder" }
+          if (-not (./WitcherTrack.exe credits | Select-String 'NonCommercial')) { throw "the executable cannot state its licence" }
 
       - uses: actions/upload-artifact@v4
         with:
