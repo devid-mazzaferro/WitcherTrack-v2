@@ -54,5 +54,12 @@
     <EmbeddedResource Include="..\..\data\map\backgrounds.json" LogicalName="WitcherTrack.App.Data.map.backgrounds.json" Condition="Exists('..\..\data\map\backgrounds.json')" />
     <EmbeddedResource Include="..\..\data\map\*.webp" LogicalName="WitcherTrack.App.Data.map.%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\LICENSE" LogicalName="WitcherTrack.App.LICENSE" Condition="Exists('..\..\LICENSE')" />
+    <!-- The game's own inventory artwork for every diagram and formula, extracted from a
+         local install by tools/extract_icons.py. Served one at a time from /icon/{file}
+         rather than inlined the way the pin artwork is: there are 474 of them, and two
+         megabytes of base64 in a script the browser parses on every load is not the same
+         cost as two megabytes it fetches only for the rows it draws. -->
+    <EmbeddedResource Include="..\..\data\icons\*.png" LogicalName="WitcherTrack.App.Data.icons.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\data\icons\index.json" LogicalName="WitcherTrack.App.Data.icons.index.json" Condition="Exists('..\..\data\icons\index.json')" />
   </ItemGroup>
 </Project>
