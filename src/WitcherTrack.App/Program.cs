@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using WitcherTrack.App;
@@ -17,6 +16,7 @@ using WitcherTrack.SaveFormat;
 //   WitcherTrack                serve the dashboard and overlay (default)
 //   WitcherTrack parse <file>   inspect one savegame and print what was found
 //   WitcherTrack selftest       verify the completion rules
+//   WitcherTrack credits        licence, and the terms the bundled artwork travels under
 //   WitcherTrack --help         usage
 
 const int DefaultPort = 7355;
@@ -67,6 +67,11 @@ switch (verb)
     case "export":
         return Export(args.Length > 1 ? args[1] : "catalog.csv");
 
+    case "credits":
+    case "license":
+    case "licence":
+        return PrintCredits();
+
     case "-h":
     case "--help":
     case "help":
@@ -94,6 +99,31 @@ static void PrintUsage()
     Console.WriteLine("  WitcherTrack export [file]  write the catalogue out as a table");
     Console.WriteLine("  WitcherTrack diff <list.csv> name what is missing versus a list you keep");
     Console.WriteLine("  WitcherTrack selftest       verify the completion rules");
+    Console.WriteLine("  WitcherTrack credits        licence and third-party terms");
+}
+
+/// <summary>
+/// Prints the licence, which travels inside the executable.
+/// </summary>
+/// <remarks>
+/// The binary carries the region artwork, which is CDPR's and redistributed under
+/// CC BY-NC-SA 4.0. Once a picture is inside an executable, the file next to it that used
+/// to state the terms may not be there at all, so the executable has to be able to state
+/// them on its own. The map view keeps its own credit line for the same reason, at the
+/// place the artwork is actually looked at.
+/// </remarks>
+static int PrintCredits()
+{
+    string? licence = EmbeddedAssets.ReadText("LICENSE");
+
+    if (licence is null)
+    {
+        Console.Error.WriteLine("This build carries no licence text. See LICENSE in the repository.");
+        return 1;
+    }
+
+    Console.WriteLine(licence.TrimEnd());
+    return 0;
 }
 
 /// <summary>
@@ -624,18 +654,32 @@ static async Task ServeAsync(int port)
     app.MapGet("/overlay", static () => ServeEmbedded("overlay.html"));
     app.MapGet("/map", static () => ServeEmbedded("map.html"));
 
-    // The region backgrounds, from the data folder rather than the executable: they are
-    // an optional download, far too large to embed, and licensed separately.
+    // The region backgrounds: from the data folder when one is there, otherwise from
+    // inside the executable. A folder wins so that replacing the artwork stays a matter of
+    // dropping a file in, and the embedded copy is what makes a bare WitcherTrack.exe draw
+    // a real map instead of points on nothing.
     app.MapGet("/map/bg/{file}", (string file) =>
     {
-        // Only ever a bare file name from our own index, never a path.
-        if (state.MapImageFolder is null || file.Contains('/') || file.Contains('\\') || file.Contains(".."))
+        // Only ever a bare .webp name from our own index, never a path. The extension is
+        // part of the check rather than decoration: EmbeddedAssets.Open matches on a suffix, so an
+        // unfiltered name could reach any other resource in the binary.
+        if (!file.EndsWith(".webp", StringComparison.Ordinal)
+            || file.Contains('/') || file.Contains('\\') || file.Contains(".."))
         {
             return Results.NotFound();
         }
 
-        string full = Path.Combine(state.MapImageFolder, file);
-        return File.Exists(full) ? Results.File(full, "image/webp") : Results.NotFound();
+        if (state.MapImageFolder is not null)
+        {
+            string full = Path.Combine(state.MapImageFolder, file);
+
+            if (File.Exists(full))
+            {
+                return Results.File(full, "image/webp");
+            }
+        }
+
+        return ServeEmbedded(file);
     });
 
     // Shared by both pages, so the map artwork is defined and paid for once.
@@ -680,7 +724,11 @@ static void LoadCalibration(TrackerState state)
         }
         .FirstOrDefault(File.Exists);
 
-    if (path is null)
+    // The same file-first, executable-second rule the catalogue follows.
+    string? folder = path is null ? null : Path.GetDirectoryName(Path.GetFullPath(path));
+    string? calibration = path is null ? EmbeddedAssets.ReadText("calibration.json") : File.ReadAllText(path);
+
+    if (calibration is null)
     {
         return;
     }
@@ -688,7 +736,7 @@ static void LoadCalibration(TrackerState state)
     try
     {
         Dictionary<string, MapCalibration>? fits = JsonSerializer.Deserialize(
-            File.ReadAllText(path), ApiJsonContext.Default.DictionaryStringMapCalibration);
+            calibration, ApiJsonContext.Default.DictionaryStringMapCalibration);
 
         if (fits is null)
         {
@@ -702,16 +750,19 @@ static void LoadCalibration(TrackerState state)
             state.Calibration[fit.World] = fit;
         }
 
-        Console.WriteLine($"Map calibration: {fits.Count} regions from {Path.GetFullPath(path)}");
+        Console.WriteLine($"Map calibration: {fits.Count} regions from {folder ?? "the executable"}");
 
         // Backgrounds sit beside the calibration and are keyed the same way, so they are
         // matched back to a world through the fit that shares their region name.
-        string backgrounds = Path.Combine(Path.GetDirectoryName(path)!, "backgrounds.json");
+        string? beside = folder is null ? null : Path.Combine(folder, "backgrounds.json");
+        string? backgrounds = beside is not null && File.Exists(beside)
+            ? File.ReadAllText(beside)
+            : EmbeddedAssets.ReadText("backgrounds.json");
 
-        if (File.Exists(backgrounds))
+        if (backgrounds is not null)
         {
             Dictionary<string, MapBackground>? images = JsonSerializer.Deserialize(
-                File.ReadAllText(backgrounds), ApiJsonContext.Default.DictionaryStringMapBackground);
+                backgrounds, ApiJsonContext.Default.DictionaryStringMapBackground);
 
             foreach ((string region, MapBackground image) in images ?? [])
             {
@@ -721,7 +772,9 @@ static void LoadCalibration(TrackerState state)
                 }
             }
 
-            state.MapImageFolder = Path.GetDirectoryName(Path.GetFullPath(path));
+            // Null when there is no data folder at all: the pictures then come from the
+            // executable, which is what the background route falls back to.
+            state.MapImageFolder = folder;
             Console.WriteLine($"Map backgrounds: {state.Backgrounds.Count} regions");
         }
     }
@@ -742,7 +795,13 @@ static void LoadCatalog(TrackerState state)
         }
         .FirstOrDefault(File.Exists);
 
-    if (path is null)
+    // A copy travels inside the executable, so a bare WitcherTrack.exe is a whole
+    // tracker. The file on disk still wins: rebuilding the catalogue after a game update
+    // means dropping a new catalog.json here, and that has to keep working.
+    string source = path is null ? "the executable" : Path.GetFullPath(path);
+    string? json = path is null ? EmbeddedAssets.ReadText("catalog.json") : File.ReadAllText(path);
+
+    if (json is null)
     {
         Console.WriteLine("No catalog.json found - progress will be recorded but totals will be zero.");
         Console.WriteLine("Build one with:  WitcherTrack catalog <scriptslog.txt>");
@@ -751,18 +810,17 @@ static void LoadCatalog(TrackerState state)
 
     try
     {
-        CatalogEntry[]? entries = JsonSerializer.Deserialize(
-            File.ReadAllText(path), ApiJsonContext.Default.CatalogEntryArray);
+        CatalogEntry[]? entries = JsonSerializer.Deserialize(json, ApiJsonContext.Default.CatalogEntryArray);
 
         if (entries is { Length: > 0 })
         {
             state.Catalog.AddRange(entries);
-            Console.WriteLine($"Catalogue: {entries.Length:N0} entries from {Path.GetFullPath(path)}");
+            Console.WriteLine($"Catalogue: {entries.Length:N0} entries from {source}");
         }
     }
     catch (Exception exception)
     {
-        Console.WriteLine($"Could not read {path}: {exception.Message}");
+        Console.WriteLine($"Could not read the catalogue from {source}: {exception.Message}");
     }
 }
 
@@ -862,16 +920,8 @@ static void SaveRunInBackground(TrackerState state)
 /// <summary>Returns an embedded web asset, or 404 when it is missing.</summary>
 static IResult ServeEmbedded(string name)
 {
-    Assembly assembly = typeof(TrackerState).Assembly;
+    Stream? stream = EmbeddedAssets.Open(name);
 
-    // Resource names are derived from the root namespace and folder path, which is not
-    // the same as the assembly name here. Matching on the suffix keeps this working if
-    // either is renamed.
-    string? resource = Array.Find(
-        assembly.GetManifestResourceNames(),
-        candidate => candidate.EndsWith("." + name, StringComparison.Ordinal));
-
-    Stream? stream = resource is null ? null : assembly.GetManifestResourceStream(resource);
     if (stream is null)
     {
         return Results.NotFound();
@@ -882,6 +932,7 @@ static IResult ServeEmbedded(string name)
         ".html" => "text/html; charset=utf-8",
         ".css" => "text/css; charset=utf-8",
         ".js" => "text/javascript; charset=utf-8",
+        ".webp" => "image/webp",
         _ => "application/octet-stream",
     };
 
