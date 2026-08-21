@@ -165,7 +165,7 @@ public static class CatalogBuilder
             // matching on it would silently miss every rule keyed on a real tag.
             string ruleKey = StripGuid(record.Id);
             string displayName = Humanise(record.Id, kind);
-            string dlc = record.Dlc ?? PoiDlc(record) ?? "base";
+            string dlc = record.Dlc ?? PoiDlc(record) ?? SchematicDlc(record) ?? "base";
             string? pinType = PinType(record);
 
             byId[record.Id] = new CatalogEntry(
@@ -272,6 +272,21 @@ public static class CatalogBuilder
             ? "baw"
             : null;
     }
+
+    /// <summary>
+    /// The content pack a diagram or formula belongs to, when one is on record for it.
+    /// </summary>
+    /// <remarks>
+    /// The game says nothing about a schematic's origin, so this is the only signal there
+    /// is - a curated table in <see cref="GameData.SchematicContentPacks"/>, keyed on the
+    /// internal identifier because two different schematics can share a display name.
+    /// Returns null for everything not listed, so the caller's own default applies.
+    /// </remarks>
+    private static string? SchematicDlc(ReporterProtocol.Record record) =>
+        record.Kind is TrackedKind.Diagram or TrackedKind.Formula
+        && GameData.SchematicContentPacks.TryGetValue(record.Id, out string? pack)
+            ? pack
+            : null;
 
     /// <summary>
     /// Folds a Gwent card into its card type, which is what the collection quest counts.
