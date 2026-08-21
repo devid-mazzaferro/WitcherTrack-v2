@@ -1,5 +1,5 @@
 /***********************************************************************/
-/**  modWitcherTrack  v0.17  - reporter for WitcherTrack
+/**  modWitcherTrack  v1.0  - reporter for WitcherTrack
 /**
 /**  Reports what the player has completed, so the tracker can read game
 /**  state directly instead of running OCR over the on-screen popups.
@@ -816,7 +816,7 @@ function WT_OnMapPinUpdate( mapPinName : name )
 
 exec function wt_ping()
 {
-	WT_Meta( "ping", "modWitcherTrack v0.17" );
+	WT_Meta( "ping", "modWitcherTrack v1.0" );
 }
 
 exec function wt_quests()
