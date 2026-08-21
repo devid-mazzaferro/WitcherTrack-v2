@@ -87,10 +87,9 @@ jobs:
           prerelease: ${{ startsWith(github.ref_name, 'v0.') }}
           body: |
             **Diagrams and formulae are filed by a list kept by hand.** The game reports a
-            content pack for quests and nothing at all for schematics, so the sixty-five
-            Blood and Wine diagrams and the twenty-nine Hearts of Stone ones are listed by
-            identifier and everything else counts as base game. No formula appears on
-            either list, so all of them count as base game.
+            content pack for quests and nothing at all for schematics, so they are listed by
+            identifier and everything else counts as base game. Blood and Wine has
+            ninety-six, Hearts of Stone thirty.
 
             **What to download.** `WitcherTrack.exe` is the whole tracker: the catalogue,
             the map artwork and the interface all travel inside it, and it needs no folder
