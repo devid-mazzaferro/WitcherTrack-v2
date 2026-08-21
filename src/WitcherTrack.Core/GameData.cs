@@ -377,9 +377,17 @@ public static class GameData
     /// silently count four of the eight.
     /// </para>
     /// <para>
-    /// Sixty-five Blood and Wine diagrams and twenty-nine Hearts of Stone ones are listed.
-    /// Both lists were collected by hand and checked against the catalogue: every name in
-    /// them resolves to an identifier the game has actually reported, and none is left over.
+    /// Ninety-six Blood and Wine entries and thirty Hearts of Stone ones are listed. Both
+    /// lists were collected by hand and checked against the catalogue: every name in them
+    /// resolves to an identifier the game has actually reported, and none is left over.
+    /// <para>
+    /// Formulae belong here too, which the first pass missed: the armour dyes and the
+    /// mutagen transmutators are Blood and Wine's, and Hearts of Stone adds one. Their
+    /// internal names give nothing away - the Shaelmaar bait is <c>Recipe for Sharley
+    /// Lure</c> and the Cleansing mixture is <c>q603_diarrhea_potion_recipe</c> - which is
+    /// the whole reason this table is keyed on identifiers and built from display names by
+    /// hand.
+    /// </para>
     /// </para>
     /// </remarks>
     public static readonly IReadOnlyDictionary<string, string> SchematicContentPacks = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -501,6 +509,47 @@ public static class GameData
 
         // Sold by the Ofieri merchant, and the one schematic that belongs to no set.
         ["Concealment Kit schematic"] = "hos",
+
+        // The armour dyes, which Blood and Wine introduced along with the dye workshop.
+        ["Recipe Dye Black"] = "baw",
+        ["Recipe Dye Blue"] = "baw",
+        ["Recipe Dye Brown"] = "baw",
+        ["Recipe Dye Gray"] = "baw",
+        ["Recipe Dye Green"] = "baw",
+        ["Recipe Dye Orange"] = "baw",
+        ["Recipe Dye Pink"] = "baw",
+        ["Recipe Dye Purple"] = "baw",
+        ["Recipe Dye Red"] = "baw",
+        ["Recipe Dye Turquoise"] = "baw",
+        ["Recipe Dye White"] = "baw",
+        ["Recipe Dye Yellow"] = "baw",
+
+        // Mutagen transmutators: three grades times six conversions.
+        ["Recipe Lesser Mutagen Blue to Green"] = "baw",
+        ["Recipe Lesser Mutagen Blue to Red"] = "baw",
+        ["Recipe Lesser Mutagen Green to Blue"] = "baw",
+        ["Recipe Lesser Mutagen Green to Red"] = "baw",
+        ["Recipe Lesser Mutagen Red to Blue"] = "baw",
+        ["Recipe Lesser Mutagen Red to Green"] = "baw",
+        ["Recipe Mutagen Blue to Green"] = "baw",
+        ["Recipe Mutagen Blue to Red"] = "baw",
+        ["Recipe Mutagen Green to Blue"] = "baw",
+        ["Recipe Mutagen Green to Red"] = "baw",
+        ["Recipe Mutagen Red to Blue"] = "baw",
+        ["Recipe Mutagen Red to Green"] = "baw",
+        ["Recipe Greater Mutagen Blue to Green"] = "baw",
+        ["Recipe Greater Mutagen Blue to Red"] = "baw",
+        ["Recipe Greater Mutagen Green to Blue"] = "baw",
+        ["Recipe Greater Mutagen Green to Red"] = "baw",
+        ["Recipe Greater Mutagen Red to Blue"] = "baw",
+        ["Recipe Greater Mutagen Red to Green"] = "baw",
+
+        // Shaelmaar bait, filed internally under the beast's working name.
+        ["Recipe for Sharley Lure"] = "baw",
+
+        // Hearts of Stone's one formula, named after what the potion is for rather
+        // than what it is called.
+        ["q603_diarrhea_potion_recipe"] = "hos",
     };
 
     /// <summary>
