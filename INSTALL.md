@@ -1,20 +1,19 @@
-@ -0,0 +1,99 @@
 # WitcherTrack — setup
 
 The full version of this, with screenshots and troubleshooting, is the README on the
 project page. This is the offline copy that ships in the download.
 
-Two pieces: the **tracker** (this folder) and the **in-game reporter** (`modWitcherTrack.zip`).
-Both are needed.
+Two pieces: the **tracker** (`WitcherTrack.exe`) and the **in-game reporter**
+(`modWitcherTrack.zip`). Both are needed.
 
 ---
 
 ## 1. The tracker
 
-You already have it. `WitcherTrack.exe` is the whole tracker: the catalogue, the map
-artwork and the interface all travel inside it, so it needs nothing beside it. A `data\`
-folder placed next to it is read in preference, which is how a catalogue rebuilt after a
-game update takes effect.
+`WitcherTrack.exe` is the whole tracker: the catalogue, the map artwork and the interface
+all travel inside it, so it needs nothing beside it and there is nothing to extract. Put it
+wherever you like. A `data\` folder placed next to it is read in preference, which is how a
+catalogue rebuilt after a game update takes effect.
 
 Run `WitcherTrack.exe`. The dashboard opens at <http://127.0.0.1:7355/>. It listens on the
 loopback address only and makes no outbound connections.
