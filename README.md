@@ -65,11 +65,11 @@ view and does count in the 300% view.
 | `baw100` | Blood and Wine only with standalone start, no main game |
 | `all300` | all three, combined |
 
-> **Diagrams and formulae carry no content pack yet.** The game reports one for quests
-> and nothing for schematics, so every diagram and formula is filed under the base game.
-> `all300` counts all of them and is complete; `hos100` and `baw100` count none of them,
-> and `base100` may count some that belong to an expansion. Quests, points of interest and
-> Gwent cards are unaffected.
+> **Diagrams and formulae are filed by a list kept by hand.** The game reports a content
+> pack for quests and nothing at all for schematics, so the sixty-five Blood and Wine
+> diagrams and the twenty-nine Hearts of Stone ones are listed by identifier and everything
+> else counts as base game. No formula appears on either list, so all of them count as
+> base game.
 
 The game can be started directly into either with a pre-made Geralt who already knows a number 
 of diagrams and formulae; because the tracker reads real game state rather than assuming a 
