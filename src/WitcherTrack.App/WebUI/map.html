@@ -111,6 +111,23 @@
   .newest { fill: none; stroke: var(--ink); stroke-width: 2; opacity: .9;
             vector-effect: non-scaling-stroke; pointer-events: none; }
 
+  /* Whatever the checklist sent us here to look at. It pulses for a few seconds and then
+     settles: arriving on a map of four hundred points, the answer to "which one" has to
+     be findable without hunting, and a marker that pulsed forever would compete with the
+     map afterwards. */
+  /* White, not the to-do amber: the ring sits on top of a field of amber markers, and a
+     highlight the same colour as everything around it highlights nothing. */
+  .sought { fill: none; stroke: var(--ink); stroke-width: 2.5;
+            paint-order: stroke; filter: drop-shadow(0 0 3px rgba(0,0,0,.9));
+            vector-effect: non-scaling-stroke; pointer-events: none;
+            animation: sought 1.1s ease-out 4; }
+  @keyframes sought {
+    0%   { opacity: 1;   stroke-width: 2.5; }
+    70%  { opacity: .25; stroke-width: 8; }
+    100% { opacity: .95; stroke-width: 2.5; }
+  }
+  @media (prefers-reduced-motion: reduce) { .sought { animation: none; opacity: .95; } }
+
   .tooltip { position: absolute; pointer-events: none; background: var(--hover-bg);
              border: 1px solid var(--border); border-radius: 8px; padding: .5rem .7rem;
              font-size: .78rem; box-shadow: 0 6px 20px rgba(0,0,0,.45); display: none;
@@ -187,25 +204,14 @@ let dragFrom = null;
 let follow = true;         // during playback, keep the newest completion in view
 let trail = false;         // draw the route between completions in the order they fell
 
-/* Prettier names for the world files the game reports. Anything unlisted falls back to
-   the file's own name, so a world nobody has seen yet still shows up rather than
-   vanishing. */
-const REGION_NAMES = {
-  'novigrad.w2w': 'Velen & Novigrad',
-  'skellige.w2w': 'Skellige',
-  'bob.w2w': 'Toussaint',
-  'kaer_morhen.w2w': 'Kaer Morhen',
-  'prolog_village.w2w': 'White Orchard',
-  'prolog_village_winter.w2w': 'White Orchard (winter)',
-  'wyzima_castle.w2w': 'Vizima',
-  'spiral.w2w': 'The Spiral',
-  'island_of_mist.w2w': 'Isle of Mists',
-};
+/* An entry the checklist asked us to show, arriving as /map#focus=<catalogue id>.
+   Applied once: the page reloads itself whenever the run changes, and re-centring on
+   every push would drag the view back under whoever had since panned away. The ring
+   stays, so the point remains identifiable after the view is free again. */
+let sought = null;
+let soughtApplied = false;
 
-function regionName(world) {
-  const leaf = world.split('\\').pop();
-  return REGION_NAMES[leaf] || leaf.replace(/\.w2w$/, '');
-}
+/* REGION_NAMES and regionName() come from /icons.js, which both pages already load. */
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -530,6 +536,20 @@ function draw() {
     svg.appendChild(group);
   }
 
+  if (sought) {
+    const found = region.points.find(p => p.id === sought);
+
+    if (found) {
+      const at = place(region, found);
+      const ring = document.createElementNS(NS, 'circle');
+      ring.setAttribute('cx', X(at.east));
+      ring.setAttribute('cy', Y(at.north));
+      ring.setAttribute('r', size * 1.9);
+      ring.setAttribute('class', 'sought');
+      svg.appendChild(ring);
+    }
+  }
+
   if (cutoff !== null) {
     const newest = newestAt(cutoff);
 
@@ -668,6 +688,43 @@ function paintScrubLabels(last) {
 
 /* ------------------------------------------------------------------- wire */
 
+/* Turn the view to whatever the checklist pointed at.
+ *
+ * The checklist only offers this for points of interest in a region that has a fitted
+ * transform, because those are the only entries the game itself places. Everything else
+ * is placed by where the player was standing when it was finished, which for something
+ * still outstanding has not happened.
+ *
+ * Done once per page, not once per redraw: the map reloads on every run change, and a
+ * view that snapped back each time would be unusable while playing.
+ */
+function goToSought() {
+  const hash = new URLSearchParams(location.hash.slice(1));
+  sought = hash.get('focus');
+
+  if (!sought || soughtApplied) return;
+
+  const index = regions.findIndex(r => r.points.some(p => p.id === sought));
+  if (index < 0) { sought = null; return; }
+
+  soughtApplied = true;
+  current = index;
+
+  const region = regions[index];
+  const point = region.points.find(p => p.id === sought);
+  const at = place(region, point);
+
+  // The closest step: the question being answered is "which of these eleven", and at the
+  // widest zoom Skellige is a field of four hundred markers with a ring somewhere in it.
+  zoomStep = ZOOMS.length - 1;
+
+  // Only a region with a background has pixel coordinates the view can be centred in;
+  // without one the picture is fitted to the points each draw, so its own centre is the
+  // only meaningful one and the ring is what finds the point.
+  centre = region.background ? { x: at.east, y: -at.north } : null;
+}
+
+
 async function load() {
   const [map, line] = await Promise.all([
     fetch('/api/map').then(r => r.json()),
@@ -687,6 +744,7 @@ async function load() {
   }
 
   document.getElementById('empty')?.remove();
+  goToSought();
   renderTabs();
   renderScrub();
   draw();
