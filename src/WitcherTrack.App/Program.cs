@@ -438,6 +438,7 @@ static async Task ServeAsync(int port)
     var state = new TrackerState();
     LoadCatalog(state);
     LoadCalibration(state);
+    LoadIcons(state);
 
     // Resumed before anything is ingested, so the report the game sends on its next load
     // lands on top of a run that already knows what it had done and when.
@@ -517,6 +518,10 @@ static async Task ServeAsync(int port)
     // the pushed state for the same reason the timeline is: the overlay never draws a
     // map, and this is a thousand points.
     app.MapGet("/api/map", () => state.MapPoints());
+
+    // The whole checklist, done and not, which is the question the totals never answered.
+    // Fetched only when the run has actually changed, the same way the timeline is.
+    app.MapGet("/api/checklist", () => state.Checklist());
 
     app.MapGet("/api/modes", () => state.Rulesets
         .Where(r => r.Active)
@@ -653,6 +658,22 @@ static async Task ServeAsync(int port)
     app.MapGet("/", static () => ServeEmbedded("index.html"));
     app.MapGet("/overlay", static () => ServeEmbedded("overlay.html"));
     app.MapGet("/map", static () => ServeEmbedded("map.html"));
+    app.MapGet("/checklist", static () => ServeEmbedded("checklist.html"));
+
+    // The game's own inventory artwork for a diagram or a formula. One request per icon
+    // the checklist actually draws, so a closed section costs nothing; the same suffix
+    // rule as the map artwork, with the extension checked for the same reason.
+    app.MapGet("/icon/{file}", static (string file) =>
+    {
+        if (!file.EndsWith(".png", StringComparison.Ordinal)
+            || file.Contains('/') || file.Contains('\\') || file.Contains(".."))
+        {
+            return Results.NotFound();
+        }
+
+        Stream? art = EmbeddedAssets.Open("icons." + file);
+        return art is null ? Results.NotFound() : Results.Stream(art, "image/png");
+    });
 
     // The region backgrounds: from the data folder when one is there, otherwise from
     // inside the executable. A folder wins so that replacing the artwork stays a matter of
@@ -781,6 +802,49 @@ static void LoadCalibration(TrackerState state)
     catch (Exception exception)
     {
         Console.Error.WriteLine($"Ignoring calibration.json: {exception.Message}");
+    }
+}
+
+/// <summary>
+/// Loads the per-entry artwork index, if this build carries one.
+/// </summary>
+/// <remarks>
+/// Optional in the same way the map backgrounds are: without it the checklist falls back
+/// to one icon per category, which is what every row had before. Built by
+/// <c>tools/extract_icons.py</c> against a local game install.
+/// </remarks>
+static void LoadIcons(TrackerState state)
+{
+    string? path = new[]
+        {
+            Path.Combine("data", "icons", "index.json"),
+            Path.Combine(AppContext.BaseDirectory, "icons", "index.json"),
+            Path.Combine(AppContext.BaseDirectory, "data", "icons", "index.json"),
+        }
+        .FirstOrDefault(File.Exists);
+
+    string? json = path is not null ? File.ReadAllText(path) : EmbeddedAssets.ReadText("icons.index.json");
+
+    if (json is null)
+    {
+        return;
+    }
+
+    try
+    {
+        Dictionary<string, string>? index = JsonSerializer.Deserialize(
+            json, ApiJsonContext.Default.DictionaryStringString);
+
+        foreach ((string id, string file) in index ?? [])
+        {
+            state.Icons[id] = file;
+        }
+
+        Console.WriteLine($"Item artwork: {state.Icons.Count} diagrams and formulae");
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Ignoring the artwork index: {exception.Message}");
     }
 }
 
@@ -1097,6 +1161,59 @@ internal sealed record UnlockEvent(
 /// <summary>The body of <c>POST /api/mode</c>.</summary>
 internal sealed record ModeSelection(string Id);
 
+/// <summary>The payload behind <c>/api/checklist</c>: everything the mode counts, done or not.</summary>
+/// <param name="Groups">
+/// For every mutual-exclusion group still open, how many more of its members a run needs.
+/// The list holds every member that is still available, because any of them will do, but
+/// they are worth fewer than their number: The Paths of Destiny lists two rows and asks
+/// for one. Without this the section headings would count rows and disagree with the
+/// totals at the top of the page.
+/// </param>
+internal sealed record ChecklistResponse(
+    IReadOnlyList<ChecklistEntry> Entries,
+    IReadOnlyDictionary<string, int> Groups);
+
+/// <summary>One thing the mode counts, and whether the run has it.</summary>
+/// <param name="Kind">Quest, Diagram, Formula, PointOfInterest or GwentCard.</param>
+/// <param name="DisplayName">The game's own name, which is what a search is typed against.</param>
+/// <param name="Region">
+/// The quest's category or the point's own pin type, whichever this entry has.
+/// </param>
+/// <param name="RegionLabel">
+/// A pin type as a player would name it, for example "Guarded Treasure". Null for
+/// everything that is not a point of interest.
+/// </param>
+/// <param name="Mapped">
+/// Whether the map view can turn to this entry. True only for points of interest in a
+/// region that has a fitted transform: everything else is placed by where the player was
+/// standing when it was finished, which has not happened yet.
+/// </param>
+/// <param name="GroupId">
+/// The mutual-exclusion group this belongs to, when it belongs to one. Members of a group
+/// that has already had its fill are not listed at all.
+/// </param>
+/// <param name="World">
+/// The streamed world file a point of interest was reported from, which is what says
+/// whether it is in Velen or in Skellige. Null for everything with no place yet.
+/// </param>
+/// <param name="Icon">
+/// The file name of this entry's own artwork under <c>/icon/</c>, when the game has one
+/// for it. Diagrams and formulae do; everything else falls back to its category icon.
+/// </param>
+/// <param name="Done">Whether the run has this one.</param>
+internal sealed record ChecklistEntry(
+    string Id,
+    string Kind,
+    string DisplayName,
+    string Dlc,
+    string? Region,
+    string? RegionLabel,
+    bool Mapped,
+    string? GroupId,
+    string? World,
+    string? Icon,
+    bool Done);
+
 /// <summary>The payload behind <c>/api/map</c>: everything placeable, by streamed world.</summary>
 internal sealed record MapResponse(IReadOnlyList<MapRegion> Regions);
 
@@ -1216,6 +1333,8 @@ internal sealed record IgtStartResponse(bool Started, string? Detail);
 [JsonSerializable(typeof(MapResponse))]
 [JsonSerializable(typeof(PersistedRun))]
 [JsonSerializable(typeof(Dictionary<string, MapCalibration>))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
+[JsonSerializable(typeof(ChecklistResponse))]
 [JsonSerializable(typeof(Dictionary<string, MapBackground>))]
 internal sealed partial class ApiJsonContext : JsonSerializerContext
 {
