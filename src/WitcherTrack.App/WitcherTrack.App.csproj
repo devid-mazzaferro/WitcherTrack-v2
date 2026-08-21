@@ -24,15 +24,35 @@
          static asset pipeline, which would try to publish it as loose files alongside the
          binary and defeat the point. -->
     <EmbeddedResource Include="WebUI\**\*" />
-    <!-- The catalogue is data, not code: it travels next to the binary so that both
-         "dotnet run" and a published release find it without being told where. -->
+    <!-- The catalogue and the map data also travel next to the binary, which is what
+         "dotnet run" reads and what lets a rebuilt catalogue override the embedded copy
+         below. -->
     <Content Include="..\..\data\catalog.json" Link="catalog.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\data\catalog.json')" />
     <!-- The fitted world-to-map transforms and the region backgrounds, travelling the
-         same way the catalogue does. The pictures are deliberately *not* embedded: they
-         are optional, they are licensed separately (CC BY-NC-SA 4.0, see the map view's
-         credits), and a release should stay runnable without them. -->
+         same way the catalogue does. -->
     <Content Include="..\..\data\map\calibration.json" Link="map\calibration.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\data\map\calibration.json')" />
     <Content Include="..\..\data\map\backgrounds.json" Link="map\backgrounds.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\data\map\backgrounds.json')" />
     <Content Include="..\..\data\map\*.webp" Link="map\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The same data again, this time inside the binary, so that a bare WitcherTrack.exe
+         downloaded on its own is a complete tracker rather than one that starts at 0/0.
+         The loose copies above still win when they are there: rebuilding the catalogue
+         after a game update means dropping a new catalog.json beside the executable, and
+         an embedded copy that could not be overridden would kill that.
+
+         The region artwork is CDPR's, used under section 9.4 of their User Agreement and
+         redistributed under CC BY-NC-SA 4.0. Carrying it inside the binary means the
+         binary has to be able to say so on its own, which is what LICENSE is here for:
+         "WitcherTrack credits" prints it without needing any file on disk. The map view
+         keeps its own credit line as well.
+
+         Logical names are set explicitly because these files live outside the project
+         folder, where the automatic naming has nothing sensible to derive a name from. -->
+    <EmbeddedResource Include="..\..\data\catalog.json" LogicalName="WitcherTrack.App.Data.catalog.json" Condition="Exists('..\..\data\catalog.json')" />
+    <EmbeddedResource Include="..\..\data\map\calibration.json" LogicalName="WitcherTrack.App.Data.map.calibration.json" Condition="Exists('..\..\data\map\calibration.json')" />
+    <EmbeddedResource Include="..\..\data\map\backgrounds.json" LogicalName="WitcherTrack.App.Data.map.backgrounds.json" Condition="Exists('..\..\data\map\backgrounds.json')" />
+    <EmbeddedResource Include="..\..\data\map\*.webp" LogicalName="WitcherTrack.App.Data.map.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\LICENSE" LogicalName="WitcherTrack.App.LICENSE" Condition="Exists('..\..\LICENSE')" />
   </ItemGroup>
 </Project>
