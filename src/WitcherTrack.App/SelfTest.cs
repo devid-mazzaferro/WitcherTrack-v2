@@ -48,6 +48,8 @@ public static class SelfTest
         Check(failures, "Schematics are filed under the content pack that sells them", SchematicsCarryTheirContentPack);
         Check(failures, "The shipped catalogue agrees with the schematic content packs", ShippedCatalogAgreesOnSchematics);
         Check(failures, "The executable carries its own catalogue, map and licence", ExecutableCarriesItsOwnData);
+        Check(failures, "The checklist leaves out what can no longer be done", ChecklistRespectsExclusionGroups);
+        Check(failures, "The checklist offers the map only where the map can go", ChecklistOffersTheMapWhereItCanGo);
         Check(failures, "The in-game-time clock recognises every known game build", GameBuildsAreDetected);
         Check(failures, "In-game time excludes loading screens and unreadable intervals", InGameTimeExcludesLoading);
         Check(failures, "A paused in-game clock keeps its total", InGameTimeSurvivesAPause);
@@ -753,6 +755,77 @@ public static class SelfTest
         string? licence = EmbeddedAssets.ReadText("LICENSE");
         AssertTrue(licence is not null, "the licence inside the executable");
         AssertTrue(licence!.Contains("NonCommercial", StringComparison.Ordinal), "the licence to name the NonCommercial term");
+    }
+
+    private static void ChecklistRespectsExclusionGroups()
+    {
+        // The two halves of The Paths of Destiny exclude one another: finishing either
+        // leaves the other permanently inactive. A plain "not done" list would keep asking
+        // for the dead half forever, which is the one way a checklist can be actively
+        // wrong - it would send someone after something the game will never give.
+        var state = new TrackerState();
+        state.Catalog.AddRange(
+        [
+            new CatalogEntry("half1", TrackedKind.Quest, "One way", "baw", GroupId: "either"),
+            new CatalogEntry("half2", TrackedKind.Quest, "The other way", "baw", GroupId: "either"),
+            new CatalogEntry("q3", TrackedKind.Quest, "An ordinary quest", "baw"),
+            new CatalogEntry("skip", TrackedKind.Quest, "Not a real objective", "baw", CountsToward: false),
+        ]);
+        state.Groups["either"] = new ExclusionGroup("either", MaxCount: 1);
+
+        ChecklistResponse before = state.Checklist();
+
+        AssertEqual(3, before.Entries.Count, "both halves and the ordinary quest are listed");
+        AssertTrue(!before.Entries.Any(e => e.Id == "skip"), "a non-counting entry is never listed");
+        AssertTrue(before.Entries.All(e => !e.Done), "and none of them is done yet");
+        AssertEqual(1, before.Groups["either"], "the pair asks for one between them");
+
+        // Doing either half settles the pair.
+        state.Record(EventSource.GameEvent,
+            [new KeyValuePair<string, CompletionState>("half1", CompletionState.Done)],
+            isSnapshot: false);
+
+        ChecklistResponse after = state.Checklist();
+
+        // The finished half stays, because that row is what says the pair is settled; the
+        // other goes, because it is no longer something the game will ever give.
+        AssertEqual(2, after.Entries.Count, "the finished half and the ordinary quest");
+        AssertTrue(after.Entries.Any(e => e.Id == "half1" && e.Done), "the half that was done");
+        AssertTrue(!after.Entries.Any(e => e.Id == "half2"), "and not the one it closed off");
+        AssertTrue(!after.Groups.ContainsKey("either"), "a settled group asks for nothing");
+    }
+
+    private static void ChecklistOffersTheMapWhereItCanGo()
+    {
+        // "See on map" has to lead somewhere. Only points of interest carry coordinates
+        // of their own, and only a region with a fitted transform is drawn at all - the
+        // map view drops the rest - so an offer to show one there would open a page that
+        // cannot honour it.
+        var state = new TrackerState();
+        state.Calibration["novigrad.w2w"] = new MapCalibration(
+            @"levels\\novigrad\\novigrad.w2w", "linear", [[1, 0], [0, 1], [0, 0]]);
+        state.Catalog.AddRange(
+        [
+            new CatalogEntry("placed", TrackedKind.PointOfInterest, "A pin in a drawn region", "base",
+                "BanditCampfire", X: 10, Y: 20, World: @"levels\\novigrad\\novigrad.w2w"),
+            new CatalogEntry("elsewhere", TrackedKind.PointOfInterest, "A pin in a region with no fit", "base",
+                "BanditCampfire", X: 10, Y: 20, World: @"levels\\mist\\island_of_mist.w2w"),
+            new CatalogEntry("diagram", TrackedKind.Diagram, "Diagram: something", "base"),
+        ]);
+
+        Dictionary<string, ChecklistEntry> byId = state.Checklist().Entries.ToDictionary(e => e.Id);
+
+        AssertTrue(byId["placed"].Mapped, "a pin in a drawn region to be offered");
+        AssertTrue(!byId["elsewhere"].Mapped, "a pin in an undrawn region not to be offered");
+        AssertTrue(!byId["diagram"].Mapped, "a diagram, which has no place until it is done, not to be offered");
+
+        // The pin type is what a person recognises a point by: the game gives map pins,
+        // not names, so the identifier is all the display name ever holds.
+        // BanditCampfire, not BanditCamp: the game files a bandit camp under the first and
+        // a person in distress under the second, which is exactly the sort of thing a test
+        // that invented its own type name would sail straight past.
+        AssertEqual("Bandit Camp", byId["placed"].RegionLabel!, "the pin type as a player would name it");
+        AssertTrue(byId["diagram"].RegionLabel is null, "and nothing of the sort for a diagram");
     }
 
     private static void GameBuildsAreDetected()
