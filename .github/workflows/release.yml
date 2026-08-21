@@ -88,16 +88,16 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          # Every 0.x tag is published as a pre-release. What is incomplete is the data,
-          # not the build, and the releases page is the only place a reader can see that
-          # distinction before downloading.
+          # Every 0.x tag is published as a pre-release, and that is a statement about the
+          # data rather than the build: the releases page is the only place a reader can
+          # see the distinction before downloading.
           prerelease: ${{ startsWith(github.ref_name, 'v0.') }}
           body: |
-            **Diagrams and formulae carry no content pack yet.** The game reports one for
-            quests and nothing for schematics, so every diagram and formula is filed under
-            the base game. `all300` counts all of them and is complete; `hos100` and
-            `baw100` count none of them, and `base100` may count some that belong to an
-            expansion. Quests, points of interest and Gwent cards are unaffected.
+            **Diagrams and formulae are filed by a list kept by hand.** The game reports a
+            content pack for quests and nothing at all for schematics, so the sixty-five
+            Blood and Wine diagrams and the twenty-nine Hearts of Stone ones are listed by
+            identifier and everything else counts as base game. No formula appears on
+            either list, so all of them count as base game.
 
             `WitcherTrack-win-x64.zip` is the whole download: the executable, its data
             folder, and the reporter to unzip into the game's Mods folder. The bare
