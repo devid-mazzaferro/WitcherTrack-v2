@@ -356,6 +356,154 @@ public static class GameData
     public const int ToussaintAreaType = 11;
 
     /// <summary>
+    /// Diagrams and formulae that belong to a content pack, mapped to it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The game tells the reporter which content pack a quest came from and says nothing at
+    /// all about a schematic, so every diagram and formula would otherwise be filed under
+    /// the base game - correct for a 300% run, which counts all of them, and wrong for the
+    /// per-pack modes, which would ask for expansion diagrams during a base-game run and
+    /// for none at all during an expansion run.
+    /// </para>
+    /// <para>
+    /// The identifier is the key, not the display name, and that is not a preference: the
+    /// game hands out the same localised name for two different schematics. "Diagram:
+    /// Toussaint knight's armor" is reported for both <c>Knight Geralt Armor 3 schematic</c>
+    /// and <c>Knight Geralt A Armor 3 schematic</c>, and the same collision repeats for the
+    /// gauntlets, boots and trousers. The A variants are the tourney set - the community
+    /// list names all eight, four "Toussaint knight's" and four "Toussaint knight's tourney",
+    /// and the catalogue holds exactly eight identifiers - so a set keyed on names would
+    /// silently count four of the eight.
+    /// </para>
+    /// <para>
+    /// Sixty-five Blood and Wine diagrams and twenty-nine Hearts of Stone ones are listed.
+    /// Both lists were collected by hand and checked against the catalogue: every name in
+    /// them resolves to an identifier the game has actually reported, and none is left over.
+    /// </para>
+    /// </remarks>
+    public static readonly IReadOnlyDictionary<string, string> SchematicContentPacks = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        // Grandmaster witcher gear - the fourth and fifth upgrades of the four school sets.
+        ["Witcher Lynx Jacket Upgrade schematic 4"] = "baw",
+        ["Witcher Lynx Gloves Upgrade schematic 5"] = "baw",
+        ["Witcher Lynx Boots Upgrade schematic 5"] = "baw",
+        ["Witcher Lynx Pants Upgrade schematic 5"] = "baw",
+        ["Lynx School steel sword Upgrade schematic 4"] = "baw",
+        ["Lynx School silver sword Upgrade schematic 4"] = "baw",
+        ["Witcher Gryphon Jacket Upgrade schematic 4"] = "baw",
+        ["Witcher Gryphon Gloves Upgrade schematic 5"] = "baw",
+        ["Witcher Gryphon Boots Upgrade schematic 5"] = "baw",
+        ["Witcher Gryphon Pants Upgrade schematic 5"] = "baw",
+        ["Gryphon School steel sword Upgrade schematic 4"] = "baw",
+        ["Gryphon School silver sword Upgrade schematic 4"] = "baw",
+        ["Witcher Bear Jacket Upgrade schematic 4"] = "baw",
+        ["Witcher Bear Gloves Upgrade schematic 5"] = "baw",
+        ["Witcher Bear Boots Upgrade schematic 5"] = "baw",
+        ["Witcher Bear Pants Upgrade schematic 5"] = "baw",
+        ["Bear School steel sword Upgrade schematic 4"] = "baw",
+        ["Bear School silver sword Upgrade schematic 4"] = "baw",
+        ["Witcher Wolf Jacket Upgrade schematic 4"] = "baw",
+        ["Witcher Wolf Gloves Upgrade schematic 5"] = "baw",
+        ["Witcher Wolf Boots Upgrade schematic 5"] = "baw",
+        ["Witcher Wolf Pants Upgrade schematic 5"] = "baw",
+        ["Wolf School steel sword Upgrade schematic 4"] = "baw",
+        ["Wolf School silver sword Upgrade schematic 4"] = "baw",
+
+        // The Manticore set, internally the Red Wolf school.
+        ["Witcher Red Wolf Jacket schematic 1"] = "baw",
+        ["Witcher Red Wolf Gloves schematic 1"] = "baw",
+        ["Witcher Red Wolf Boots schematic 1"] = "baw",
+        ["Witcher Red Wolf Pants schematic 1"] = "baw",
+        ["Red Wolf School steel sword schematic 1"] = "baw",
+        ["Red Wolf School silver sword schematic 1"] = "baw",
+
+        // Toussaint knight's gear; the A variants are the tourney set.
+        ["Knight Geralt Armor 3 schematic"] = "baw",
+        ["Knight Geralt Gloves 3 schematic"] = "baw",
+        ["Knight Geralt Boots 3 schematic"] = "baw",
+        ["Knight Geralt Pants 3 schematic"] = "baw",
+        ["Knight Geralt A Armor 3 schematic"] = "baw",
+        ["Knight Geralt A Gloves 3 schematic"] = "baw",
+        ["Knight Geralt A Boots 3 schematic"] = "baw",
+        ["Knight Geralt A Pants 3 schematic"] = "baw",
+        ["Knights Geralt steel sword 3 schematic"] = "baw",
+
+        // Ducal guard gear; the A variants are the Color Guardsman's and the Captain's.
+        ["Guard Lvl1 Armor 3 schematic"] = "baw",
+        ["Guard Lvl1 Gloves 3 schematic"] = "baw",
+        ["Guard Lvl1 Boots 3 schematic"] = "baw",
+        ["Guard Lvl1 Pants 3 schematic"] = "baw",
+        ["Guard Lvl1 steel sword 3 schematic"] = "baw",
+        ["Guard Lvl1 A Armor 3 schematic"] = "baw",
+        ["Guard Lvl1 A Gloves 3 schematic"] = "baw",
+        ["Guard Lvl1 A Boots 3 schematic"] = "baw",
+        ["Guard Lvl1 A Pants 3 schematic"] = "baw",
+        ["Guard Lvl2 Armor 3 schematic"] = "baw",
+        ["Guard Lvl2 Gloves 3 schematic"] = "baw",
+        ["Guard Lvl2 Boots 3 schematic"] = "baw",
+        ["Guard Lvl2 Pants 3 schematic"] = "baw",
+        ["Guard Lvl2 steel sword 3 schematic"] = "baw",
+        ["Guard Lvl2 A Armor 3 schematic"] = "baw",
+        ["Guard Lvl2 A Gloves 3 schematic"] = "baw",
+        ["Guard Lvl2 A Boots 3 schematic"] = "baw",
+        ["Guard Lvl2 A Pants 3 schematic"] = "baw",
+
+        // Toussaint blades sold or found on their own.
+        ["Toussaint steel sword 3 schematic"] = "baw",
+        ["Hanza steel sword 3 schematic"] = "baw",
+
+        // The serpentine swords of Hanse Faramond and the Viroledan.
+        ["Serpent Steel Sword schematic 1"] = "baw",
+        ["Serpent Steel Sword schematic 2"] = "baw",
+        ["Serpent Steel Sword schematic 3"] = "baw",
+        ["Serpent Silver Sword schematic 1"] = "baw",
+        ["Serpent Silver Sword schematic 2"] = "baw",
+        ["Serpent Silver Sword schematic 3"] = "baw",
+
+        // The Runewright's glyphs, in all three grades.
+        ["Glyph binding lesser schematic"] = "hos",
+        ["Glyph binding schematic"] = "hos",
+        ["Glyph binding greater schematic"] = "hos",
+        ["Glyph mending lesser schematic"] = "hos",
+        ["Glyph mending schematic"] = "hos",
+        ["Glyph mending greater schematic"] = "hos",
+        ["Glyph reinforcement lesser schematic"] = "hos",
+        ["Glyph reinforcement schematic"] = "hos",
+        ["Glyph reinforcement greater schematic"] = "hos",
+        ["Glyph warding lesser schematic"] = "hos",
+        ["Glyph warding schematic"] = "hos",
+        ["Glyph warding greater schematic"] = "hos",
+
+        // The two runestones the expansion added; note the internal spelling of pyerog.
+        ["Rune pierog schematic"] = "hos",
+        ["Rune tvarog schematic"] = "hos",
+
+        // The Ofieri set, internally Ofir.
+        ["Crafted Ofir Armor schematic"] = "hos",
+        ["Crafted Ofir Gloves schematic"] = "hos",
+        ["Crafted Ofir Boots schematic"] = "hos",
+        ["Crafted Ofir Pants schematic"] = "hos",
+        ["Crafted Ofir Steel Sword schematic"] = "hos",
+
+        // The Order of the Flaming Rose set, internally Burning Rose.
+        ["Crafted Burning Rose Armor schematic"] = "hos",
+        ["Crafted Burning Rose Gloves schematic"] = "hos",
+        ["Crafted Burning Rose Sword schematic"] = "hos",
+
+        // The Viper set and its two swords, carrying the game's own EP1 prefix.
+        ["EP1 Witcher Armor schematic"] = "hos",
+        ["EP1 Witcher Gloves schematic"] = "hos",
+        ["EP1 Witcher Boots schematic"] = "hos",
+        ["EP1 Witcher Pants schematic"] = "hos",
+        ["EP1 Viper School steel sword schematic"] = "hos",
+        ["EP1 Crafted Witcher Silver Sword schematic"] = "hos",
+
+        // Sold by the Ofieri merchant, and the one schematic that belongs to no set.
+        ["Concealment Kit schematic"] = "hos",
+    };
+
+    /// <summary>
     /// Gwent cards that are not part of the base-game collection.
     /// </summary>
     /// <remarks>
