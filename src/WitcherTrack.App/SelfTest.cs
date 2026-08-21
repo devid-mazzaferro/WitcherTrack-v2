@@ -1,3 +1,4 @@
+using System.Text.Json;
 using WitcherTrack.Core;
 using WitcherTrack.Core.Ingest;
 using WitcherTrack.Core.Model;
@@ -44,6 +45,8 @@ public static class SelfTest
         Check(failures, "A resumed run keeps its history and its timings", ResumingKeepsHistory);
         Check(failures, "A catalogue carries a point of interest's world path through", CatalogCarriesWorldPath);
         Check(failures, "A catalogue merges every dump it is given", CatalogMergesDumps);
+        Check(failures, "Schematics are filed under the content pack that sells them", SchematicsCarryTheirContentPack);
+        Check(failures, "The shipped catalogue agrees with the schematic content packs", ShippedCatalogAgreesOnSchematics);
         Check(failures, "The in-game-time clock recognises every known game build", GameBuildsAreDetected);
         Check(failures, "In-game time excludes loading screens and unreadable intervals", InGameTimeExcludesLoading);
         Check(failures, "A paused in-game clock keeps its total", InGameTimeSurvivesAPause);
@@ -641,6 +644,73 @@ public static class SelfTest
         // The trailing GUID is stripped from the display name; the identifier keeps it.
         CatalogEntry treasure = result.Entries.First(e => e.Dlc == "baw");
         AssertEqual("lw cp33 sunken treasure", treasure.DisplayName, "display name");
+    }
+
+    private static void SchematicsCarryTheirContentPack()
+    {
+        // The game sends a content pack for quests and nothing for schematics: the fifth
+        // field of a diagram record is empty. Attribution therefore comes entirely from
+        // GameData.SchematicContentPacks, and anything absent from it stays base-game.
+        string[] log =
+        [
+            "WT|v1|meta|begin|light",
+            "WT|v1|diagram|Knight Geralt Armor 3 schematic|done||Diagram: Toussaint knight's armor",
+            "WT|v1|diagram|Knight Geralt A Armor 3 schematic|done||Diagram: Toussaint knight's armor",
+            "WT|v1|diagram|Light Armor 1 schematic|done||Diagram: Leather jacket",
+            "WT|v1|meta|end|light",
+        ];
+
+        CatalogBuilder.Result result = CatalogBuilder.FromScriptLog(log);
+
+        AssertEqual(3, result.Entries.Count, "three schematics catalogued");
+        AssertEqual("base", result.Entries.Single(e => e.Id == "Light Armor 1 schematic").Dlc, "an unlisted schematic stays base-game");
+
+        // Both halves of the name collision have to be attributed independently. The game
+        // reports one display name for two schematics - the plain Toussaint knight's set
+        // and the tourney set - so a table keyed on names would file only one of them.
+        CatalogEntry plain = result.Entries.Single(e => e.Id == "Knight Geralt Armor 3 schematic");
+        CatalogEntry tourney = result.Entries.Single(e => e.Id == "Knight Geralt A Armor 3 schematic");
+
+        AssertEqual("baw", plain.Dlc, "the knight's armor diagram");
+        AssertEqual("baw", tourney.Dlc, "the tourney armor diagram, which shares its name");
+        AssertEqual(plain.DisplayName, tourney.DisplayName, "and the two names really are identical");
+
+        // The two hand-collected lists, in the sizes they were delivered in.
+        AssertEqual(65, GameData.SchematicContentPacks.Values.Count(pack => pack == "baw"), "Blood and Wine schematics on file");
+        AssertEqual(29, GameData.SchematicContentPacks.Values.Count(pack => pack == "hos"), "Hearts of Stone schematics on file");
+    }
+
+    private static void ShippedCatalogAgreesOnSchematics()
+    {
+        // The table above only decides what a *rebuilt* catalogue says. What every install
+        // actually counts is the shipped catalog.json, so the two have to agree: adding an
+        // identifier to GameData without rebuilding the catalogue changes nothing at all,
+        // and does so silently.
+        string? path = new[]
+            {
+                "catalog.json",
+                Path.Combine("data", "catalog.json"),
+                Path.Combine(AppContext.BaseDirectory, "catalog.json"),
+                Path.Combine(AppContext.BaseDirectory, "data", "catalog.json"),
+            }
+            .FirstOrDefault(File.Exists);
+
+        if (path is null)
+        {
+            Console.WriteLine("        (no catalog.json to check against)");
+            return;
+        }
+
+        CatalogEntry[] entries = JsonSerializer.Deserialize(
+            File.ReadAllText(path), ApiJsonContext.Default.CatalogEntryArray) ?? [];
+
+        Dictionary<string, CatalogEntry> byId = entries.ToDictionary(e => e.Id, StringComparer.Ordinal);
+
+        foreach ((string id, string pack) in GameData.SchematicContentPacks)
+        {
+            AssertTrue(byId.ContainsKey(id), $"the shipped catalogue to hold {id}");
+            AssertEqual(pack, byId[id].Dlc, $"the content pack of {id}");
+        }
     }
 
     private static void GameBuildsAreDetected()
