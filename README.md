@@ -80,6 +80,24 @@ stream, with the four category counts, a progress bar and the last few completio
 
 ![The overlay](docs/overlay.png)
 
+**A checklist**, on its own page. Every quest, point of interest, diagram, formula and card
+the mode counts, done and not, scored `X/Y done` at every level and searchable by name. A
+300% run splits it by content pack as well. Finished rows stay in place with their box
+ticked - a box that can never be seen ticked is decoration - and can be put away when they
+get in the way.
+
+![The checklist](docs/checklist.png)
+
+Every diagram and formula carries **the game's own inventory artwork for the item it
+makes**: 474 icons, extracted from a local game install by `tools/extract_icons.py` and
+carried inside the executable. A schematic's own icon is the same scroll for every one of
+them, which is why they all look alike in the game's inventory; the icon worth showing
+belongs to what the schematic *produces*, and the game's own data says which that is.
+
+Points of interest carry their pin's artwork and a *see on map* that opens the map turned
+to that exact point. That is the only way to tell one Bandit Camp from the fifty-one
+others: the game gives its map pins a type and a place, never a name.
+
 **An interactive map with run playback.** Every point of interest is placed from the
 coordinates the game reports, through a transform fitted per region and verified against
 real map art. Quests, diagrams, formulae and Gwent cards are placed too, from where the
@@ -98,6 +116,7 @@ the executable, so shutting it down, restarting the game, or coming back the day
 where you were with every completion still carrying the time it actually happened. 
 
 **A completions table**, in order, with time played and content pack for each entry.
+
 
 ### Why not read the screen
 
