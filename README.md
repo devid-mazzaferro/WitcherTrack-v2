@@ -1,4 +1,3 @@
-@ -0,0 +1,471 @@
 <h1 align="center">WitcherTrack</h1>
 
 <p align="center">
@@ -18,7 +17,7 @@ interest and Gwent card is identified by the internal name the game uses.
 
 ![The dashboard](docs/dashboard.png)
 
-**[Download the latest release →](../../releases/latest)**, it's only one `.exe` with accompanying folder, no runtime to
+**[Download the latest release →](../../releases/latest)**, it's one `.exe` and the mod, no runtime to
 install, no configuration to edit before the first run.
 
 ```
@@ -225,8 +224,9 @@ Launch from that shortcut from then on.
 
 ### 3. The tracker
 
-Download the latest release and extract it anywhere you like. It does not need to live near 
-the game, and it never writes inside the game folder.
+Download `WitcherTrack.exe` from the latest release and put it anywhere you like. There is
+nothing to extract. It does not need to live near the game, and it never writes inside the
+game folder.
 
 `WitcherTrack.exe` is the whole tracker. The catalogue of everything trackable, the map
 artwork and the web interface all travel inside it, so a single downloaded file is enough.
@@ -316,8 +316,8 @@ Script Merger), or the game was launched without `-debugscripts`. The tracker ca
 the difference between "nothing has happened yet" and "no mod": the log looks the same.
 
 **The dashboard says `No catalog.json found`.**
-The `data` folder is missing or was extracted somewhere else. It has to sit next to
-`WitcherTrack.exe`.
+The executable carries its own catalogue, so this means the file it was built with was
+missing. Download the release again, or build with `data\catalog.json` in place.
 
 **The numbers went down.**
 That is a feature. You loaded an earlier save and the tracker followed you back.
