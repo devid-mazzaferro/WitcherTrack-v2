@@ -47,6 +47,7 @@ public static class SelfTest
         Check(failures, "A catalogue merges every dump it is given", CatalogMergesDumps);
         Check(failures, "Schematics are filed under the content pack that sells them", SchematicsCarryTheirContentPack);
         Check(failures, "The shipped catalogue agrees with the schematic content packs", ShippedCatalogAgreesOnSchematics);
+        Check(failures, "The executable carries its own catalogue, map and licence", ExecutableCarriesItsOwnData);
         Check(failures, "The in-game-time clock recognises every known game build", GameBuildsAreDetected);
         Check(failures, "In-game time excludes loading screens and unreadable intervals", InGameTimeExcludesLoading);
         Check(failures, "A paused in-game clock keeps its total", InGameTimeSurvivesAPause);
@@ -711,6 +712,47 @@ public static class SelfTest
             AssertTrue(byId.ContainsKey(id), $"the shipped catalogue to hold {id}");
             AssertEqual(pack, byId[id].Dlc, $"the content pack of {id}");
         }
+    }
+
+    private static void ExecutableCarriesItsOwnData()
+    {
+        // A release is one file, and that promise is invisible from inside a checkout:
+        // every path also resolves against the data folder, so dropping an EmbeddedResource
+        // line from the project file breaks nothing here and everything for whoever
+        // downloads the bare executable. This is the only thing that notices.
+        string? catalog = EmbeddedAssets.ReadText("catalog.json");
+        AssertTrue(catalog is not null, "a catalogue inside the executable");
+
+        CatalogEntry[] entries = JsonSerializer.Deserialize(
+            catalog!, ApiJsonContext.Default.CatalogEntryArray) ?? [];
+        AssertTrue(entries.Length > 0, "the embedded catalogue to hold entries");
+
+        AssertTrue(EmbeddedAssets.ReadText("calibration.json") is not null, "the map transforms");
+
+        string? index = EmbeddedAssets.ReadText("backgrounds.json");
+        AssertTrue(index is not null, "the background index");
+
+        // Every picture the index names has to be in there too. Asked this way rather
+        // than against a list of region names, adding a region covers itself. Without the
+        // artwork the map view draws points on nothing, which reads as a broken fit
+        // rather than as a missing file.
+        Dictionary<string, MapBackground> backgrounds = JsonSerializer.Deserialize(
+            index!, ApiJsonContext.Default.DictionaryStringMapBackground) ?? [];
+
+        AssertTrue(backgrounds.Count > 0, "the index to name at least one region");
+
+        foreach ((string region, MapBackground image) in backgrounds)
+        {
+            using Stream? picture = EmbeddedAssets.Open(image.Image);
+            AssertTrue(picture is not null, $"artwork for {region} ({image.Image})");
+        }
+
+        // The pictures are CDPR's, redistributed under CC BY-NC-SA 4.0. Carrying them
+        // inside the binary is only defensible if the binary can state the terms without
+        // any file beside it, which is what "WitcherTrack credits" prints.
+        string? licence = EmbeddedAssets.ReadText("LICENSE");
+        AssertTrue(licence is not null, "the licence inside the executable");
+        AssertTrue(licence!.Contains("NonCommercial", StringComparison.Ordinal), "the licence to name the NonCommercial term");
     }
 
     private static void GameBuildsAreDetected()
