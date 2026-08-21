@@ -5,7 +5,7 @@
          and the build that reads it can never be from different releases. 1.0 once every
          diagram carried the content pack it belongs to, which was the last piece of data
          the per-pack modes were missing. -->
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
