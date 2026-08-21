@@ -2,9 +2,10 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <!-- One version for the whole project, shared with the in-game reporter so a report
-         and the build that reads it can never be from different releases. Below 1.0 while
-         diagrams and formulae still carry no content pack of their own. -->
-    <Version>0.17.0</Version>
+         and the build that reads it can never be from different releases. 1.0 once every
+         diagram carried the content pack it belongs to, which was the last piece of data
+         the per-pack modes were missing. -->
+    <Version>1.0.0</Version>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
