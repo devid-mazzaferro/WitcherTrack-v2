@@ -201,6 +201,17 @@ internal sealed class TrackerState
     /// </summary>
     public Dictionary<string, MapCalibration> Calibration { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// The game's own inventory artwork for a diagram or a formula, keyed by catalogue id.
+    /// </summary>
+    /// <remarks>
+    /// Built by <c>tools/extract_icons.py</c> from a local game install, which asks the
+    /// game rather than guessing: a schematic says which item it makes, and that item
+    /// carries the icon. The schematic's own icon is the same scroll for every one of
+    /// them, which is why they all look alike in the inventory.
+    /// </remarks>
+    public Dictionary<string, string> Icons { get; } = new(StringComparer.Ordinal);
+
     /// <summary>Region background pictures, keyed by world file. Empty until they are built.</summary>
     public Dictionary<string, MapBackground> Backgrounds { get; } = new(StringComparer.Ordinal);
 
@@ -807,6 +818,112 @@ internal sealed class TrackerState
                 igt?.Active ?? false, igt?.Detail, igt?.Elapsed?.TotalSeconds, igt?.Loading,
                 StartedFresh);
         }
+    }
+
+    /// <summary>
+    /// The whole checklist: every counting catalogue entry, done or not.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The tracker has always known this and never said it. The totals are a denominator
+    /// and the timeline is what has already happened; neither answers the question someone
+    /// actually has in front of them, which is what is left.
+    /// </para>
+    /// <para>
+    /// Every content pack is returned and the interface filters by the mode's scope, the
+    /// same way <see cref="ProgressCalculator"/> does, so switching modes costs no round
+    /// trip.
+    /// </para>
+    /// <para>
+    /// Completed entries stay in the list. They are what a checklist is for - the box next
+    /// to a row means nothing if a row vanishes the moment it could be ticked - and the
+    /// interface hides them on request rather than never being sent them.
+    /// </para>
+    /// <para>
+    /// A mutual-exclusion group is the one place a flat list would lie. The two halves of
+    /// The Paths of Destiny cannot both be finished, so once either is done the other is
+    /// not outstanding work - it is unreachable, and listing it would ask for something
+    /// the game will never give. Unfinished members of a satisfied group are therefore
+    /// dropped, while the one that was finished stays; the rest carry their group so the
+    /// interface can say that one of them is enough.
+    /// </para>
+    /// </remarks>
+    public ChecklistResponse Checklist()
+    {
+        lock (_gate)
+        {
+            Dictionary<string, CompletionState> states =
+                StateResolver.Resolve(_events, _overrides.Values, _provenByQuest);
+
+            bool IsDone(string id) =>
+                states.TryGetValue(id, out CompletionState state) && state == CompletionState.Done;
+
+            // How many of each group are already done, so a group that has had its fill
+            // stops asking for more.
+            Dictionary<string, int> doneInGroup = new(StringComparer.Ordinal);
+
+            foreach (CatalogEntry entry in Catalog)
+            {
+                if (entry.GroupId is { } group && entry.CountsToward && IsDone(entry.Id))
+                {
+                    doneInGroup[group] = doneInGroup.GetValueOrDefault(group) + 1;
+                }
+            }
+
+            ChecklistEntry[] entries =
+            [
+                .. Catalog
+                    .Where(entry => entry.CountsToward)
+                    // An unfinished member of a group that has had its fill is not work
+                    // left to do; it is work the game has closed off. The finished one
+                    // stays, because that is the row that says so.
+                    .Where(entry => IsDone(entry.Id)
+                        || entry.GroupId is not { } group
+                        || doneInGroup.GetValueOrDefault(group)
+                           < (Groups.TryGetValue(group, out ExclusionGroup? cap) ? cap.MaxCount : int.MaxValue))
+                    .Select(entry => new ChecklistEntry(
+                        entry.Id,
+                        entry.Kind.ToString(),
+                        entry.DisplayName,
+                        entry.Dlc,
+                        entry.Region,
+                        entry.Kind == TrackedKind.PointOfInterest && entry.Region is not null
+                            ? GameData.PinTypeName(entry.Region)
+                            : null,
+                        // Only a point the map can actually turn to. Everything else is
+                        // placed by where the player was standing when it was finished,
+                        // which by definition has not happened yet - and a world with no
+                        // fitted transform is not drawn at all, so an offer to show it
+                        // there would lead nowhere.
+                        entry.X is not null && entry.World is { } world && HasFit(world),
+                        entry.GroupId,
+                        entry.World,
+                        Icons.GetValueOrDefault(entry.Id),
+                        IsDone(entry.Id)))
+                    .OrderBy(entry => entry.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            ];
+
+            // What each open group still asks for, which is its cap less what is already
+            // done - never more than the members actually left to do.
+            Dictionary<string, int> allowances = entries
+                .Where(entry => entry.GroupId is not null && !entry.Done)
+                .GroupBy(entry => entry.GroupId!, StringComparer.Ordinal)
+                .ToDictionary(
+                    group => group.Key,
+                    group => Math.Min(
+                        group.Count(),
+                        Math.Max(0,
+                            (Groups.TryGetValue(group.Key, out ExclusionGroup? cap) ? cap.MaxCount : group.Count())
+                            - doneInGroup.GetValueOrDefault(group.Key))),
+                    StringComparer.Ordinal);
+
+            return new ChecklistResponse(entries, allowances);
+        }
+
+        // The same join the map itself makes: fits are filed under the world file's own
+        // name, the catalogue records the full path the game reports.
+        bool HasFit(string world) =>
+            Calibration.Keys.Any(fitted => world.EndsWith(fitted, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
