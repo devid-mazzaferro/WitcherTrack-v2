@@ -50,42 +50,33 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path mod/modWitcherTrack -DestinationPath modWitcherTrack.zip
 
-      # The executable carries the catalogue, the map artwork and the interface, so the
-      # download is the binary, the reporter to drop into the game's Mods folder, and the
-      # notes. No data folder: one beside the executable would override what is inside it,
-      # which is a thing to do deliberately after a game update, not by default.
-      - name: Assemble the download
+      # The published folder also holds loose copies of the catalogue and the map, because
+      # that is what "dotnet run" reads during development. A downloader gets none of
+      # them, so the check has to run against the executable on its own: copied out by
+      # itself, it either carries its data or it does not.
+      - name: Check the executable stands on its own
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path bundle -Force | Out-Null
-          Copy-Item publish/WitcherTrack.exe bundle/
-          Copy-Item INSTALL.md               bundle/
-          Copy-Item modWitcherTrack.zip      bundle/
-          Get-ChildItem bundle -Recurse -File | Select-Object FullName, Length
-          Compress-Archive -Path bundle/* -DestinationPath WitcherTrack-win-x64.zip
-
-      # A release that cannot find its own data is the failure this catches, and with the
-      # data inside the binary it is the binary that has to be asked. The bundle folder
-      # holds no data folder at all, so this runs the same way a downloader's copy will:
-      # the selftest reads the catalogue, the map transforms, the artwork and the licence
-      # out of the executable, and fails if any of them was left out of the build.
-      - name: Check the bundle runs and finds everything
-        shell: pwsh
-        working-directory: bundle
-        run: |
+          New-Item -ItemType Directory -Path standalone -Force | Out-Null
+          Copy-Item publish/WitcherTrack.exe standalone/
+          Push-Location standalone
           $out = ./WitcherTrack.exe selftest
           $out
-          if ($LASTEXITCODE -ne 0) { throw "selftest failed in the assembled bundle" }
-          if (Test-Path data) { throw "the bundle should carry no data folder" }
+          if ($LASTEXITCODE -ne 0) { throw "selftest failed for the bare executable" }
           if (-not (./WitcherTrack.exe credits | Select-String 'NonCommercial')) { throw "the executable cannot state its licence" }
+          Pop-Location
 
       - uses: actions/upload-artifact@v4
         with:
           name: WitcherTrack-win-x64
-          path: WitcherTrack-win-x64.zip
+          path: |
+            publish/WitcherTrack.exe
+            modWitcherTrack.zip
 
-      # Both the bundle and the bare .exe are attached: the zip is what a first-time user
-      # wants, the loose executable is what someone updating an existing install wants.
+      # Three things are attached, and GitHub adds the source archives itself: the
+      # executable, the reporter, and the setup notes. There is no bundle zip any more -
+      # the executable carries its own data, so a zip around it would only be a folder to
+      # extract before getting the same file.
       - name: Attach to the release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -101,10 +92,17 @@ jobs:
             identifier and everything else counts as base game. No formula appears on
             either list, so all of them count as base game.
 
-            `WitcherTrack-win-x64.zip` is the whole download: the executable, its data
-            folder, and the reporter to unzip into the game's Mods folder. The bare
-            `WitcherTrack.exe` is for updating an install that already has both.
+            **What to download.** `WitcherTrack.exe` is the whole tracker: the catalogue,
+            the map artwork and the interface all travel inside it, and it needs no folder
+            beside it. `modWitcherTrack.zip` is the in-game reporter, to unzip into the
+            game's `Mods` folder. `INSTALL.md` is the short setup, and the source archives
+            below are the code the executable was built from.
+
+            The game must be launched with `-debugscripts`, and the reporter must be in
+            place before it starts, because the game compiles its scripts at launch. The
+            tracker itself can be started before, after or mid-session.
           files: |
-            WitcherTrack-win-x64.zip
             publish/WitcherTrack.exe
+            modWitcherTrack.zip
+            INSTALL.md
           generate_release_notes: true
