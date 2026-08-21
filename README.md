@@ -228,26 +228,31 @@ Launch from that shortcut from then on.
 Download the latest release and extract it anywhere you like. It does not need to live near 
 the game, and it never writes inside the game folder.
 
-Keep the layout as extracted. The `data` folder is not optional: it holds the catalogue of
-everything trackable and the map artwork.
+`WitcherTrack.exe` is the whole tracker. The catalogue of everything trackable, the map
+artwork and the web interface all travel inside it, so a single downloaded file is enough.
 
 ```
 WitcherTrack\
   WitcherTrack.exe
   run.json                     written by the tracker: the run in progress
-  data\
-    catalog.json               2,148 entries: quests, diagrams, formulae, pins, cards
-    map\
-      calibration.json         world-coordinate to map-pixel transforms, per region
-      backgrounds.json
-      velen.webp               the five region maps, 1.5 MB in total
-      skellige.webp
-      toussaint.webp
-      kaer_morhen.webp
-      white_orchard.webp
 ```
 
-Run `WitcherTrack.exe`. It prints what it loaded and opens the dashboard at
+A `data` folder beside the executable is read in preference to what is inside it, which is
+how a catalogue rebuilt after a game update takes effect:
+
+```
+WitcherTrack\
+  WitcherTrack.exe
+  data\
+    catalog.json               overrides the built-in catalogue
+    map\
+      calibration.json         overrides the built-in map transforms
+      backgrounds.json
+      *.webp                   overrides the built-in region artwork
+```
+
+Run `WitcherTrack.exe`. It prints what it loaded, and says whether each piece came from a
+file or from the executable, then opens the dashboard at
 <http://127.0.0.1:7355/>. It listens on the loopback address only: nothing is exposed to
 your network, and it makes no outbound connections.
 
@@ -370,6 +375,7 @@ WitcherTrack replay <log>    replay a script log and print where the run stands
 WitcherTrack export [file]   write the catalogue out as a table
 WitcherTrack diff <list.csv> name what is missing versus a list you keep
 WitcherTrack selftest        verify the completion rules
+WitcherTrack credits         print the licence and the third-party terms
 ```
 
 `selftest` runs the counting rules against known cases and prints a pass/fail report. It
@@ -486,5 +492,9 @@ used here without permission, under section 9.4 of their User Agreement:
 > If you create your User Generated Content using any of CD PROJEKT RED graphics, audio,
 > video, text or any other content - you may use it and share for personal enjoyment, but
 > we do not allow any use of it for financial profit.
+
+The region artwork travels inside the executable, so the executable states the terms
+itself: `WitcherTrack credits` prints the licence in full, with no file needed beside it.
+The map view carries its own credit line at the place the artwork is looked at.
 
 This project is not affiliated with or endorsed by CD PROJEKT RED.
