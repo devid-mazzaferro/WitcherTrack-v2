@@ -678,9 +678,10 @@ public static class SelfTest
         AssertEqual("baw", tourney.Dlc, "the tourney armor diagram, which shares its name");
         AssertEqual(plain.DisplayName, tourney.DisplayName, "and the two names really are identical");
 
-        // The two hand-collected lists, in the sizes they were delivered in.
-        AssertEqual(65, GameData.SchematicContentPacks.Values.Count(pack => pack == "baw"), "Blood and Wine schematics on file");
-        AssertEqual(29, GameData.SchematicContentPacks.Values.Count(pack => pack == "hos"), "Hearts of Stone schematics on file");
+        // The two hand-collected lists, in the sizes they were delivered in: 65 diagrams
+        // and 31 formulae for Blood and Wine, 29 and one for Hearts of Stone.
+        AssertEqual(96, GameData.SchematicContentPacks.Values.Count(pack => pack == "baw"), "Blood and Wine schematics on file");
+        AssertEqual(30, GameData.SchematicContentPacks.Values.Count(pack => pack == "hos"), "Hearts of Stone schematics on file");
     }
 
     private static void ShippedCatalogAgreesOnSchematics()
