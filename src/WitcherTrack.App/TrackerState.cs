@@ -233,16 +233,13 @@ internal sealed class TrackerState
             "The Paths of Destiny has two halves; finishing one leaves the other permanently inactive."),
     };
 
-    /// <summary>Per-mode inclusion overrides.</summary>
-    public List<RulesetException> Exceptions { get; } = [];
-
     /// <summary>
     /// Which mode the dashboard is currently showing, or null before the player has chosen
     /// one.
     /// </summary>
     /// <remarks>
     /// Only one mode is played at a time, so the interface asks once at the start rather
-    /// than showing all four - the event log underneath is the same regardless of which is
+    /// than showing all five - the event log underneath is the same regardless of which is
     /// selected, so switching later costs nothing and loses no data.
     /// </remarks>
     public string? ActiveModeId
@@ -264,6 +261,35 @@ internal sealed class TrackerState
         new("hos100", "100% Hearts of Stone", "100%", Scope("hos"), 20),
         new("baw100", "100% Blood and Wine", "100%", Scope("baw"), 30),
         new("all300", "300%", "300%", Scope("base", "hos", "baw"), 40),
+
+        // The Gwent run: one objective, the base-game collection, and nothing else. It is
+        // the first mode that is about a kind of thing rather than a content pack, which
+        // is why Ruleset has a Kinds filter at all. Leaders are outside it, because the
+        // reporter cannot see them: the sweep reads GetPlayerCollection(), and leaders live
+        // in GetPlayerLeaderCollection(), a separate list nothing asks the game for.
+        new("gwent100", "100% Gwent", "100%", Scope("base"), 50, Kinds: Kinds(TrackedKind.GwentCard)),
+    ];
+
+    /// <summary>
+    /// The seven special Gwent cards, out of 100% and 300% and in for a Gwent run.
+    /// </summary>
+    /// <remarks>
+    /// Both totals are right and they are not the same total. The collection is 127 card
+    /// types; the five faction lists come to 120, because a card list prints the special
+    /// cards separately - see <see cref="GameData.GwentSpecialTypes"/>. A completion run
+    /// counts the 120 everyone quotes; a Gwent run is collecting the deck, so it counts all
+    /// 127. Written as per-mode exceptions rather than by moving the seven into a content
+    /// pack of their own, because they are base game and nothing about the packs changed.
+    /// </remarks>
+    public List<RulesetException> Exceptions { get; } =
+    [
+        .. from mode in new[] { "base100", "all300" }
+           from type in GameData.GwentSpecialTypes.Order(StringComparer.Ordinal)
+           select new RulesetException(
+               mode,
+               $"gwent:{type}",
+               Include: false,
+               "A special card, which the faction lists that 100% and 300% count leave out."),
     ];
 
     /// <summary>
@@ -807,8 +833,27 @@ internal sealed class TrackerState
             IReadOnlyList<RulesetProgress> modes =
                 ProgressCalculator.ComputeAll(Catalog, Groups, Rulesets, Exceptions, states);
 
-            // Newest first, so the overlay can just take the first few.
-            UnlockEvent[] recent = [.. _unlocks.AsEnumerable().Reverse().Take(RecentUnlockCount)];
+            // Newest first, so the overlay can just take the first few - and only what the
+            // chosen mode is actually counting. A feed is an answer to "how is the run
+            // going", so announcing a point of interest to a Gwent run is not a bonus, it
+            // is noise pushing the relevant line off the bottom. Filtered before the take,
+            // not after, or a burst of pin sweeps would leave the overlay showing nothing.
+            Ruleset? active = _activeModeId is null
+                ? null
+                : Rulesets.FirstOrDefault(r => string.Equals(r.Id, _activeModeId, StringComparison.Ordinal));
+
+            Dictionary<string, CatalogEntry> byId = CatalogById();
+
+            UnlockEvent[] recent =
+            [
+                .. _unlocks
+                    .AsEnumerable()
+                    .Reverse()
+                    .Where(unlock => active is null
+                        || (byId.TryGetValue(unlock.CatalogId, out CatalogEntry? entry)
+                            && ProgressCalculator.Counts(entry, active, Exceptions)))
+                    .Take(RecentUnlockCount)
+            ];
 
             IgtSample? igt = IgtSource?.Invoke();
 
@@ -1059,7 +1104,7 @@ internal sealed class TrackerState
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Building a payload means resolving the run, computing four modes over the whole
+    /// Building a payload means resolving the run, computing five modes over the whole
     /// catalogue and serialising the result. Doing that once per record is affordable
     /// while the game is being played, where records arrive a few per second - and ruinous
     /// when the tracker is started against a log that already exists, where a session's
@@ -1125,4 +1170,6 @@ internal sealed class TrackerState
         JsonSerializer.Serialize(response, ApiJsonContext.Default.StateResponse);
 
     private static HashSet<string> Scope(params string[] packs) => new(packs, StringComparer.Ordinal);
+
+    private static HashSet<TrackedKind> Kinds(params TrackedKind[] kinds) => [.. kinds];
 }
