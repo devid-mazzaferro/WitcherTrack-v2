@@ -526,10 +526,19 @@ static async Task ServeAsync(int port)
     app.MapGet("/api/modes", () => state.Rulesets
         .Where(r => r.Active)
         .OrderBy(r => r.Sort)
-        .Select(r => new ModeInfo(r.Id, r.Name, r.Label, [.. r.Scope.Order()]))
+        .Select(r => new ModeInfo(
+            r.Id,
+            r.Name,
+            r.Label,
+            [.. r.Scope.Order()],
+            r.Kinds is null ? null : [.. r.Kinds.Order().Select(k => k.ToString())],
+            [.. state.Exceptions
+                .Where(e => string.Equals(e.RulesetId, r.Id, StringComparison.Ordinal) && !e.Include)
+                .Select(e => e.CatalogId)
+                .Order(StringComparer.Ordinal)]))
         .ToArray());
 
-    // Chooses which of the four modes the dashboard and overlay show. The event log is
+    // Chooses which of the five modes the dashboard and overlay show. The event log is
     // the same underneath regardless, so this is just a display selection.
     app.MapPost("/api/mode", (ModeSelection selection) =>
     {
@@ -1023,7 +1032,20 @@ static void OpenBrowser(string url)
 internal sealed record HealthResponse(string Version, IReadOnlyList<SourceStatus> Sources, DateTimeOffset ServerTime);
 
 /// <summary>A completion mode as exposed by <c>/api/modes</c>.</summary>
-internal sealed record ModeInfo(string Id, string Name, string Label, string[] Scope);
+/// <remarks>
+/// The checklist is served whole and filtered in the browser, so everything that decides
+/// whether an entry belongs to a mode has to travel with the mode: its content packs, the
+/// kinds it counts, and the individual entries held out of it. Without the last two the
+/// page would show a Gwent run every quest in the game, and would count the seven special
+/// cards toward 100%.
+/// </remarks>
+internal sealed record ModeInfo(
+    string Id,
+    string Name,
+    string Label,
+    string[] Scope,
+    string[]? Kinds,
+    string[] Excluded);
 
 /// <summary>Liveness of one ingestion source.</summary>
 internal sealed record SourceStatus(string Name, bool Connected, DateTimeOffset? LastSeen, string? Detail);
@@ -1038,6 +1060,12 @@ internal sealed record SourceStatus(string Name, bool Connected, DateTimeOffset?
 /// Newly completed entries, most recent first, real wall-clock time rather than the
 /// game's fictional calendar - what a speedrun overlay needs is elapsed run time, and the
 /// server already timestamps every observation the moment it arrives.
+/// <para>
+/// Only what the chosen mode counts, once one has been chosen. The overlay shows five of
+/// these and a run has one objective at a time: a point of interest announced to a Gwent
+/// run is not extra information, it is the relevant line pushed off the bottom. The full
+/// history is untouched and <c>/api/timeline</c> still carries all of it.
+/// </para>
 /// </param>
 /// <param name="UnlockCount">
 /// How many completions the full history holds. The chart refetches
