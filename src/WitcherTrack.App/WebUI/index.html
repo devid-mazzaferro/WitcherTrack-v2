@@ -218,6 +218,7 @@ const MODE_HINTS = {
   hos100:  "Hearts of Stone only - a standalone start, no main game",
   baw100:  "Blood and Wine only - a standalone start, no main game",
   all300:  "Base game + Hearts of Stone + Blood and Wine, combined",
+  gwent100: "Every base-game Gwent card except Roach - nothing else counts",
 };
 
 let modesCatalog = [];
@@ -303,6 +304,27 @@ function looksInternal(name, id) {
 
 /* ------------------------------------------------------------------- chart */
 
+/* What the chosen mode is made of - its packs, its kinds, the entries held out of it.
+ *
+ * /api/state carries each mode's score; /api/modes carries its shape. Every view that
+ * shows part of the run needs the shape, because a Gwent run's chart plotting quests, or
+ * its table listing points of interest, is the page disagreeing with its own headline. */
+function modeShape(mode) {
+  return mode ? modesCatalog.find(m => m.id === mode.rulesetId) : null;
+}
+
+/** The run, as the chosen mode sees it. */
+function modeUnlocks(mode) {
+  const shape = modeShape(mode);
+  return timeline.unlocks.filter(u => countsInMode(shape, u.kind, u.dlc, u.catalogId));
+}
+
+/** The categories the mode counts. Its own byKind answers this: a mode reports a row
+ *  per kind it has something to count, and nothing for the kinds it does not. */
+function modeSeries(mode) {
+  return mode ? SERIES.filter(s => mode.byKind.some(k => k.kind === s.kind)) : SERIES;
+}
+
 /* The aggregate view's own identity.
  *
  * Deliberately not one of the five category colours: the two views share a toggle, and a
@@ -316,7 +338,8 @@ function buildChart(container, view, modeProgress, axis) {
   // tracking started simply has no in-game-time coordinate and is left out of this view,
   // rather than plotted at a wrong or zero position.
   const usingIgt = axis === "igt";
-  const unlocks = usingIgt ? timeline.unlocks.filter(u => u.igtElapsedSeconds != null) : timeline.unlocks;
+  const counted = modeUnlocks(modeProgress);
+  const unlocks = usingIgt ? counted.filter(u => u.igtElapsedSeconds != null) : counted;
   if (unlocks.length < 2) {
     container.appendChild(el("div", "empty", usingIgt
       ? "The in-game-time axis appears once the clock has been running for a couple of completions."
@@ -326,7 +349,7 @@ function buildChart(container, view, modeProgress, axis) {
 
   // In the aggregate view the categories are not drawn at all, so one line stands for
   // every completion in order - the run's pace, with nothing to read across.
-  const drawn = view === "total" ? [TOTAL_SERIES] : SERIES;
+  const drawn = view === "total" ? [TOTAL_SERIES] : modeSeries(modeProgress);
 
   const t0 = new Date(timeline.runStartedAt || unlocks[0].timestamp).getTime();
   const points = unlocks
@@ -663,7 +686,7 @@ function renderDashboard(state, mode) {
 
   // The in-game-time axis is only worth offering once there is something to plot on it -
   // otherwise it is a switch to an empty chart, which reads as broken rather than unused.
-  const hasIgtData = timeline.unlocks.some(u => u.igtElapsedSeconds != null);
+  const hasIgtData = modeUnlocks(mode).some(u => u.igtElapsedSeconds != null);
   if (hasIgtData) {
     const axisSwitcher = el("div", "switch");
     for (const [id, label] of [["real", "Real time"], ["igt", "In-game time"]]) {
@@ -680,7 +703,7 @@ function renderDashboard(state, mode) {
   // A single series needs no legend: the switch above already names it.
   if (chartView === "category") {
     const legend = el("div", "legend");
-    for (const s of SERIES) {
+    for (const s of modeSeries(mode)) {
       const item = el("div", "item");
       const img = el("img"); img.src = CATEGORY_ICONS[s.kind]; img.alt = "";
       const key = el("span", "key"); key.style.background = s.colour;
@@ -695,7 +718,7 @@ function renderDashboard(state, mode) {
   app.appendChild(card);
 
   if (showTable) {
-    const tableBlock = buildTable();
+    const tableBlock = buildTable(mode);
     // The table is its own section, not a caption under the chart - without this it
     // butts straight up against the chart card's bottom edge.
     tableBlock.style.marginTop = "2.5rem";
@@ -704,7 +727,7 @@ function renderDashboard(state, mode) {
 }
 
 /** The table is what keeps every value reachable without hovering. */
-function buildTable() {
+function buildTable(mode) {
   const wrap = el("div");
   wrap.appendChild(el("h2", "section", "Completions in order"));
   const t = el("table");
@@ -713,7 +736,8 @@ function buildTable() {
   t.appendChild(head);
 
   const t0 = timeline.runStartedAt ? new Date(timeline.runStartedAt).getTime() : null;
-  const rows = timeline.unlocks.slice().reverse().slice(0, 250);
+  const counted = modeUnlocks(mode);
+  const rows = counted.slice().reverse().slice(0, 250);
   for (const u of rows) {
     const tr = el("tr");
     const at = elapsed(playSeconds(u, t0));
@@ -724,9 +748,9 @@ function buildTable() {
     t.appendChild(tr);
   }
   wrap.appendChild(t);
-  if (timeline.unlocks.length > 250) {
+  if (counted.length > 250) {
     wrap.appendChild(el("p", "section-note",
-      "Showing the 250 most recent of " + timeline.unlocks.length + "."));
+      "Showing the 250 most recent of " + counted.length + "."));
   }
   return wrap;
 }
