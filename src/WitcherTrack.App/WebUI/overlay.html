@@ -170,16 +170,26 @@ function render(state) {
     return;
   }
 
-  stats.innerHTML = CATEGORIES.map(cat => {
-    let done = 0, total = 0;
-    for (const kind of cat.kinds) {
-      const row = mode.byKind.find(k => k.kind === kind);
-      if (row) { done += row.completed; total += row.total; }
-    }
-    return '<div class="stat"><img src="' + cat.icon + '" alt="">'
-      + '<div class="text"><div class="label">' + cat.label + '</div>'
-      + '<div class="value"><b>' + done + '</b> / ' + total + '</div></div></div>';
-  }).join('');
+  // Only the categories this mode counts. A mode reports one byKind row per kind it has
+  // anything to count, so its own answer decides: Hearts of Stone and Blood and Wine ask
+  // for no Gwent cards, a Gwent run asks for nothing but them, and a row reading 0 / 0 in
+  // either case is a line of the overlay spent saying nothing.
+  const shown = CATEGORIES
+    .map(cat => {
+      let done = 0, total = 0, counted = false;
+      for (const kind of cat.kinds) {
+        const row = mode.byKind.find(k => k.kind === kind);
+        if (row) { done += row.completed; total += row.total; counted = true; }
+      }
+      return { cat, done, total, counted };
+    })
+    .filter(entry => entry.counted);
+
+  stats.innerHTML = shown.map(({ cat, done, total }) =>
+    '<div class="stat"><img src="' + cat.icon + '" alt="">'
+    + '<div class="text"><div class="label">' + cat.label + '</div>'
+    + '<div class="value"><b>' + done + '</b> / ' + total + '</div></div></div>'
+  ).join('');
 
   // The run's headline, mirroring the dashboard's own bar at overlay scale, laid out on
   // the stat blocks' own two-line rhythm: the percentage where their label sits, the
