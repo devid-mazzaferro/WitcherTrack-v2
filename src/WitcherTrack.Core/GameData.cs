@@ -557,10 +557,9 @@ public static class GameData
     /// </summary>
     /// <remarks>
     /// <para>
-    /// "Collect 'Em All" asks for 120 card types, all from the base game. The faction field
-    /// separates the Skellige deck that Blood and Wine added, but these cards are filed
-    /// under Neutral or under a base faction and cannot be told apart that way, so they are
-    /// listed here.
+    /// The base-game collection is 127 card types. The faction field separates the Skellige
+    /// deck that Blood and Wine added, but these cards are filed under Neutral or under a
+    /// base faction and cannot be told apart that way, so they are listed here.
     /// </para>
     /// <para>
     /// Expansion characters: Olgierd, Gaunter O'Dimm and his Darkness, and the Toad Prince
@@ -570,12 +569,25 @@ public static class GameData
     /// GOG cards are a store promotion, and cow and mushroom are unused definitions.
     /// </para>
     /// <para>
-    /// Removing these leaves exactly 120 types, which is the number the quest asks for.
+    /// Skellige Storm is Blood and Wine's too, although it is filed under Neutral and reads
+    /// as a special card rather than a Skellige one. The evidence is the game's own item
+    /// definition: <c>gwint_card_skellige_storm</c> carries the <c>EP2Tournament</c> tag,
+    /// which nothing outside the Skellige set carries - the whole Skellige deck and Mushroom
+    /// have it, and no base-game card does. It was counted as base game until a savefile
+    /// with the full base collection showed it absent.
+    /// </para>
+    /// <para>
+    /// Removing these leaves exactly 127 types. That number is corroborated twice over: a
+    /// savefile holding a complete base-game collection reports 127 distinct types, and the
+    /// game's own <c>GwintCollectorAchievement</c> tag marks 107 of them - precisely the 127
+    /// less the 20 types handed over in the starting deck, which are never acquired and so
+    /// are never tagged.
     /// </para>
     /// </remarks>
     public static readonly IReadOnlySet<string> NonBaseGwentTypes = new HashSet<string>(StringComparer.Ordinal)
     {
         "cow",
+        "cow_czart",
         "gog_ciri",
         "gog_geralt",
         "lady_of_the_lake",
@@ -585,8 +597,49 @@ public static class GameData
         "olgierd",
         "roach",
         "schirru",
+        "skellige_storm",
         "toad",
         "visenna",
+    };
+
+    /// <summary>
+    /// The seven Gwent cards the game files as special cards rather than as belonging to a
+    /// faction.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Not a judgement of ours: the game tags each of these <c>GwintCardSpcl</c> in
+    /// <c>def_item_gwint.xml</c>, where every other card carries <c>GwintCardNeutral</c>,
+    /// <c>GwintCardNrkd</c>, <c>GwintCardNilf</c>, <c>GwintCardSctl</c> or
+    /// <c>GwintCardMstr</c>. Their card definitions agree - none of the seven is a
+    /// <c>TYPE_CREATURE</c>.
+    /// </para>
+    /// <para>
+    /// They are what separates the two totals both of which are correct and neither of
+    /// which is the other. The base-game collection is 127 types; the five faction lists -
+    /// Neutral 10, Northern Realms 25, Nilfgaard 29, Scoia'tael 22, Monsters 34 - come to
+    /// 120, which is the figure quoted everywhere, because a card list prints the special
+    /// cards and the leaders in tables of their own. So 100% and 300% count the 120, and a
+    /// Gwent run, whose whole object is the collection, counts all 127.
+    /// </para>
+    /// <para>
+    /// Worth stating plainly, because the coincidence has already misled this project once:
+    /// the 120 the tracker used to report was *not* this 120. It was the 127 less the eight
+    /// Northern Realms cards missing from the card table, plus Skellige Storm - two
+    /// unrelated mistakes landing on the right number and making it look confirmed. This
+    /// list holds exactly the seven cards the earlier 120 wrongly included, and the eight it
+    /// wrongly left out are now in <see cref="GwentCardTypes"/>.
+    /// </para>
+    /// </remarks>
+    public static readonly IReadOnlySet<string> GwentSpecialTypes = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "clear_sky",
+        "dummy",
+        "fog",
+        "frost",
+        "horn",
+        "rain",
+        "scorch",
     };
 
     /// <summary>
@@ -695,9 +748,20 @@ public static class GameData
     /// the grouping has to come from the card names.
     /// </para>
     /// <para>
-    /// Taken from the name-to-index table in the game's own <c>gwintManager.ws</c>, with the
-    /// trailing copy number removed. Indices absent from this table are definitions with no
+    /// Taken from <c>def_gwint_cards_final.xml</c>, the game's own card definitions, keyed on
+    /// index and grouped by title. Indices absent from this table are definitions with no
     /// card behind them and are ignored.
+    /// </para>
+    /// <para>
+    /// The first version read the name-to-index tables in <c>gwintManager.ws</c> instead, and
+    /// that was wrong in a way nothing here could catch: those tables map an *item* name onto
+    /// an index, so a card the game never hands over as an item is missing from them
+    /// entirely. Eight are - Ves, Yarpen Zigrin, Keira Metz, Sile de Tansarville, Sabrina
+    /// Glevissig, Sheldon Skaggs, Dethmold and the Redanian Foot Soldier - because
+    /// <c>OnGwintSetupDecks</c> puts them straight into the starting Northern Realms deck.
+    /// Three more indices were missing for the same reason (Trebuchet is 120 as well as 121,
+    /// Ballista 145 as well as 146, Kaedweni Siege Expert also 152), and a card reported
+    /// under one of those read as an index with no card behind it and was dropped.
     /// </para>
     /// </remarks>
     public static readonly IReadOnlyDictionary<int, string> GwentCardTypes = new Dictionary<int, string>
@@ -723,6 +787,7 @@ public static class GameData
         [18] = "mrmirror",
         [19] = "mrmirror_foglet",
         [20] = "cow",
+        [21] = "cow_czart",
         [22] = "mushroom",
         [23] = "skellige_storm",
         [24] = "lady_of_the_lake",
@@ -735,18 +800,33 @@ public static class GameData
         [102] = "esterad",
         [103] = "philippa",
         [105] = "thaler",
+        [106] = "ves",
         [107] = "siegfried",
+        [108] = "yarpen",
         [109] = "dijkstra",
+        [111] = "keira",
+        [112] = "sile",
+        [113] = "sabrina",
+        [114] = "sheldon",
+        [115] = "dethmold",
         [116] = "stennis",
+        [120] = "trebuchet",
         [121] = "trebuchet",
         [125] = "poor_infantry",
         [126] = "poor_infantry",
         [127] = "poor_infantry",
         [130] = "crinfrid",
+        [131] = "crinfrid",
+        [132] = "crinfrid",
+        [135] = "redanian",
+        [136] = "redanian",
         [140] = "catapult",
+        [141] = "catapult",
+        [145] = "ballista",
         [146] = "ballista",
         [150] = "kaedwen",
         [151] = "kaedwen",
+        [152] = "kaedwen",
         [160] = "blue_stripes",
         [170] = "siege_tower",
         [175] = "dun_banner_medic",
@@ -777,7 +857,12 @@ public static class GameData
         [240] = "heavy_zerri",
         [241] = "zerri",
         [245] = "impera_brigade",
+        [246] = "impera_brigade",
+        [247] = "impera_brigade",
+        [248] = "impera_brigade",
         [250] = "nausicaa",
+        [251] = "nausicaa",
+        [252] = "nausicaa",
         [255] = "combat_engineer",
         [260] = "young_emissary",
         [261] = "young_emissary",
@@ -875,7 +960,9 @@ public static class GameData
         [511] = "svanrige",
         [512] = "olaf",
         [513] = "berserker",
+        [514] = "berserker_bear",
         [515] = "young_berserker",
+        [516] = "young_berserker_bear",
         [517] = "clan_an_craite_warrior",
         [518] = "clan_tordarroch_armorsmith",
         [519] = "clan_heymaey_skald",
