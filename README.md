@@ -52,10 +52,10 @@ WitcherTrack.exe
 
 ## What it does
 
-**Live counting across four modes.** A mode is a *view over the same run*, not a separate
-run: base game, Hearts of Stone, Blood and Wine, and 300%, everything combined. Finishing
-base-game content during a Blood and Wine run is never lost as it does not count in that
-view and does count in the 300% view.
+**Live counting across five modes.** A mode is a *view over the same run*, not a separate
+run: base game, Hearts of Stone, Blood and Wine, 300% with everything combined, and the
+Gwent collection on its own. Finishing base-game content during a Blood and Wine run is
+never lost as it does not count in that view and does count in the 300% view.
 
 | Mode | Counts |
 |---|---|
@@ -63,6 +63,15 @@ view and does count in the 300% view.
 | `hos100` | Hearts of Stone only with standalone start, no main game |
 | `baw100` | Blood and Wine only with standalone start, no main game |
 | `all300` | all three, combined |
+| `gwent100` | every base-game Gwent card except Roach, and nothing else |
+
+> **Gwent has two right totals and they are not the same.** A complete base-game collection
+> is 127 card types: the five faction lists come to 120, and the other seven are the special
+> cards the game files apart from every faction, Decoy, Commander's Horn, Scorch and the four
+> weather cards. 120 is the number quoted everywhere, because a card list prints the specials
+> and the leaders in tables of their own, so that is what 100% and 300% count. A Gwent run is
+> collecting the deck, so it counts all 127. The twenty leader cards are in neither: the game
+> keeps them in a list the reporter has no way to read.
 
 > **Diagrams and formulae are filed by a list kept by hand.** The game reports a content
 > pack for quests and nothing at all for schematics, so they are listed by identifier and
