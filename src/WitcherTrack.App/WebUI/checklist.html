@@ -338,7 +338,8 @@ function checklistSort(a, b) {
   return a.displayName.localeCompare(b.displayName);
 }
 
-function buildChecklist(scope) {
+
+function buildChecklist(mode) {
   const wrap = el("div");
   wrap.appendChild(el("p", "section-note",
     "Everything this mode counts. Diagrams and formulae carry the game's own artwork for "
@@ -371,7 +372,8 @@ function buildChecklist(scope) {
     body.textContent = "";
 
     const query = foldForSearch(checkQuery);
-    const inScope = remaining.filter(entry => scope.includes(entry.dlc));
+    // countsInMode is in /icons.js, shared with every other view of the same run.
+    const inScope = remaining.filter(e => countsInMode(mode, e.kind, e.dlc, e.id));
     const matching = inScope
       .filter(entry => showDone || !entry.done)
       .filter(entry => !query || searchKey(entry).includes(query));
@@ -395,8 +397,8 @@ function buildChecklist(scope) {
 
     // Only a mode that spans several content packs needs them named. With one pack the
     // heading would say the same word on every section.
-    const packs = scope.length > 1
-      ? PACK_ORDER.filter(pack => scope.includes(pack))
+    const packs = mode.scope.length > 1
+      ? PACK_ORDER.filter(pack => mode.scope.includes(pack))
       : [null];
 
     for (const pack of packs) {
@@ -456,7 +458,7 @@ function draw() {
   const body = document.getElementById("body");
   body.textContent = "";
   repaint = null;
-  body.appendChild(buildChecklist(info ? info.scope : ["base"]));
+  body.appendChild(buildChecklist(info || { scope: ["base"], kinds: null, excluded: [] }));
 }
 
 async function load(first) {
