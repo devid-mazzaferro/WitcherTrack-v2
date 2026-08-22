@@ -83,6 +83,27 @@ function regionName(world) {
   return REGION_NAMES[leaf] || leaf.replace(/\.w2w$/, '');
 }
 
+/* Whether one entry belongs to one completion mode.
+ *
+ * The mirror of ProgressCalculator.Counts on the server, and it has to stay one: every
+ * view that shows a subset of the run - the checklist, the chart, the map, the overlay's
+ * feed - has to agree with the total in the corner, or the page argues with itself.
+ *
+ * Three tests, because a mode is three things: the content packs it takes, the kinds of
+ * entry it counts (a Gwent run counts cards and nothing else), and the entries held out
+ * of it by name - the seven special Gwent cards, which are base game and are cards, and
+ * are still outside 100% and 300%.
+ *
+ * Whether the entry counts at all is a separate question and stays with the caller: the
+ * map draws signposts nothing counts, and the checklist is served pre-filtered.
+ */
+function countsInMode(mode, kind, dlc, id) {
+  if (!mode) return true;
+  return mode.scope.includes(dlc)
+    && (!mode.kinds || mode.kinds.includes(kind))
+    && !(mode.excluded || []).includes(id);
+}
+
 /* One drawing per tracked category, for rows and legends.
  *
  * This used to live inside index.html, where the map view could not reach it - a
