@@ -128,9 +128,39 @@ public static class ProgressCalculator
     }
 
     /// <summary>
+    /// Whether one entry counts toward one mode.
+    /// </summary>
+    /// <remarks>
+    /// The same rule the denominator is built from, exposed because two other things have
+    /// to agree with it exactly: the checklist, which lists what a mode still asks for, and
+    /// the overlay's feed, which should not announce a point of interest to a run that is
+    /// only collecting Gwent cards. Answering them from anywhere else would be a second
+    /// copy of this rule, free to drift.
+    /// </remarks>
+    public static bool Counts(
+        CatalogEntry entry,
+        Ruleset ruleset,
+        IReadOnlyCollection<RulesetException> exceptions)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(ruleset);
+        ArgumentNullException.ThrowIfNull(exceptions);
+
+        RulesetException? forced = exceptions.FirstOrDefault(e =>
+            string.Equals(e.RulesetId, ruleset.Id, StringComparison.Ordinal)
+            && string.Equals(e.CatalogId, entry.Id, StringComparison.Ordinal));
+
+        return forced is not null
+            ? forced.Include
+            : entry.CountsToward
+              && ruleset.Scope.Contains(entry.Dlc)
+              && (ruleset.Kinds is null || ruleset.Kinds.Contains(entry.Kind));
+    }
+
+    /// <summary>
     /// Decides whether an entry counts toward a mode: an explicit exception wins,
-    /// otherwise the entry's content pack must be in the mode's scope, and entries
-    /// flagged as non-counting never take part.
+    /// otherwise the entry's content pack must be in the mode's scope, its kind must be
+    /// one the mode counts, and entries flagged as non-counting never take part.
     /// </summary>
     private static bool IsInScope(CatalogEntry entry, Ruleset ruleset, Dictionary<string, bool> forced)
     {
@@ -139,7 +169,9 @@ public static class ProgressCalculator
             return include;
         }
 
-        return entry.CountsToward && ruleset.Scope.Contains(entry.Dlc);
+        return entry.CountsToward
+            && ruleset.Scope.Contains(entry.Dlc)
+            && (ruleset.Kinds is null || ruleset.Kinds.Contains(entry.Kind));
     }
 
     private static bool IsDone(IReadOnlyDictionary<string, CompletionState> states, string id) =>
