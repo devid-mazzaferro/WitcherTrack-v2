@@ -124,13 +124,20 @@ public sealed record ExclusionGroup(string Id, int MaxCount, string? Note = null
 /// False hides the mode without deleting it. This is how a 300% mode is retired once a
 /// new expansion turns it into a 400% mode, while keeping old runs readable.
 /// </param>
+/// <param name="Kinds">
+/// Which kinds of entry the mode counts, or null for every kind. A completion mode is
+/// normally about a content pack and takes all of it; a single-objective run - collecting
+/// the Gwent deck, say - is about one kind of thing wherever it comes from, and the two
+/// need saying separately because scope alone cannot express the second.
+/// </param>
 public sealed record Ruleset(
     string Id,
     string Name,
     string Label,
     IReadOnlySet<string> Scope,
     int Sort = 0,
-    bool Active = true);
+    bool Active = true,
+    IReadOnlySet<TrackedKind>? Kinds = null);
 
 /// <summary>
 /// Forces a single catalogue entry into or out of one mode, overriding the DLC scope.
