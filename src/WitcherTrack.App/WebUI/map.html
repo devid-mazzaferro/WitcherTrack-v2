@@ -167,6 +167,7 @@
       <div class="item"><span class="dot" style="background:var(--todo)"></span>still to do</div>
       <div class="item"><span class="dot" style="background:var(--context)"></span>signpost</div>
     </div>
+    <div class="item" id="mode-note" style="display:none"></div>
   </div>
 
   <div class="canvas-wrap" id="wrap">
@@ -188,6 +189,19 @@
 /* ------------------------------------------------------------------ state */
 
 let regions = [];          // from /api/map
+let mode = null;           // the chosen mode's shape, from /api/modes
+
+/* Whether a point is work the chosen mode is asking for.
+ *
+ * Two questions, and both have to be yes. Is it something a run clears at all - a
+ * signpost and a workbench are not - and does the mode chosen count it? A Gwent run's
+ * map is where its cards were picked up, and drawing four hundred pins it will never
+ * touch would bury them.
+ *
+ * countsInMode lives in /icons.js, shared with the dashboard and the checklist. */
+function counting(p) {
+  return p.counts && countsInMode(mode, p.kind, p.dlc, p.id);
+}
 let timeline = { runStartedAt: null, unlocks: [] };
 let doneAt = new Map();    // catalogId -> ms since the run started
 let current = 0;           // which region is shown
@@ -272,7 +286,7 @@ function place(region, point) {
  *  was later reloaded away are left out, for the same reason playback leaves them out. */
 function route(region, upTo) {
   return region.points
-    .filter(p => p.counts && p.done && doneAt.has(p.id) && doneAt.get(p.id) <= upTo)
+    .filter(p => counting(p) && p.done && doneAt.has(p.id) && doneAt.get(p.id) <= upTo)
     .sort((a, b) => doneAt.get(a.id) - doneAt.get(b.id));
 }
 
@@ -282,7 +296,7 @@ function newestAt(upTo) {
 
   for (let i = 0; i < regions.length; i++) {
     for (const p of regions[i].points) {
-      if (!p.counts || !p.done || !doneAt.has(p.id)) continue;
+      if (!counting(p) || !p.done || !doneAt.has(p.id)) continue;
       const at = doneAt.get(p.id);
       if (at > upTo) continue;
       if (!best || at > best.at) best = { at, point: p, region: i };
@@ -328,7 +342,7 @@ function draw() {
   // grindstones, noticeboards, harbours - were two hundred grey dots that only got in
   // the way of the background. Signposts earn their place: they are the fast-travel
   // network, which is how a route is actually planned.
-  const drawn = region.points.filter(p => p.counts || p.pinType === 'RoadSign');
+  const drawn = region.points.filter(p => counting(p) || p.pinType === 'RoadSign');
   const placed = drawn.map(p => ({ p, at: place(region, p) }));
 
   let W, H, X, Y;
@@ -606,7 +620,7 @@ function draw() {
   svg.addEventListener('pointerup', endDrag);
   svg.addEventListener('pointercancel', endDrag);
 
-  const counted = drawn.filter(p => p.counts);
+  const counted = drawn.filter(counting);
   document.getElementById('region-tag').textContent =
     regionName(region.world) + ' · ' + counted.filter(doneAsOf).length + ' / ' + counted.length;
 }
@@ -672,7 +686,7 @@ function paintScrubLabels(last) {
   const standing = new Set();
   for (const region of regions) {
     for (const p of region.points) {
-      if (p.done && doneAt.has(p.id)) standing.add(p.id);
+      if (counting(p) && p.done && doneAt.has(p.id)) standing.add(p.id);
     }
   }
 
@@ -726,13 +740,17 @@ function goToSought() {
 
 
 async function load() {
-  const [map, line] = await Promise.all([
+  const [map, line, state, modes] = await Promise.all([
     fetch('/api/map').then(r => r.json()),
     fetch('/api/timeline').then(r => r.json()),
+    fetch('/api/state').then(r => r.json()),
+    fetch('/api/modes').then(r => r.json()),
   ]);
 
   regions = map.regions || [];
   timeline = line;
+  // Null until a mode has been chosen, which countsInMode reads as "everything".
+  mode = modes.find(m => m.id === state.activeModeId) || null;
 
   const t0 = timeline.runStartedAt ? new Date(timeline.runStartedAt).getTime() : 0;
   doneAt = new Map();
@@ -744,6 +762,20 @@ async function load() {
   }
 
   document.getElementById('empty')?.remove();
+
+  // A mode can legitimately have nothing on the map. A Gwent run places a card where
+  // the player was standing when it was picked up, so a run played with the tracker
+  // open fills in as it goes - but a run read back off a savegame has only the report
+  // on load, which says that a card is owned and nothing about where. Empty regions
+  // and a score of 0 / 0 read as broken unless the page says which of the two it is.
+  const note = document.getElementById('mode-note');
+  const placed = regions.some(r => r.points.some(counting));
+  if (!placed && mode) {
+    note.textContent = mode.name + ' has nothing placed yet - only what is finished while'
+      + ' the tracker is running carries a position.';
+    note.style.display = '';
+  }
+
   goToSought();
   renderTabs();
   renderScrub();
