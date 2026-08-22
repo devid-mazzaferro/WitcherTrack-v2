@@ -47,6 +47,8 @@ public static class SelfTest
         Check(failures, "A catalogue merges every dump it is given", CatalogMergesDumps);
         Check(failures, "Schematics are filed under the content pack that sells them", SchematicsCarryTheirContentPack);
         Check(failures, "The shipped catalogue agrees with the schematic content packs", ShippedCatalogAgreesOnSchematics);
+        Check(failures, "The shipped catalogue counts 120 Gwent cards for completion and 127 for a Gwent run", ShippedCatalogCountsGwentBothWays);
+        Check(failures, "The overlay feed carries only what the chosen mode counts", RecentUnlocksFollowTheChosenMode);
         Check(failures, "The executable carries its own catalogue, map and licence", ExecutableCarriesItsOwnData);
         Check(failures, "The checklist leaves out what can no longer be done", ChecklistRespectsExclusionGroups);
         Check(failures, "The checklist offers the map only where the map can go", ChecklistOffersTheMapWhereItCanGo);
@@ -717,6 +719,88 @@ public static class SelfTest
         }
     }
 
+    private static void ShippedCatalogCountsGwentBothWays()
+    {
+        // Two totals, both correct, neither of them the other. The five faction lists come
+        // to 120 and that is the figure a completion run is measured against; the whole
+        // collection is 127, seven special cards more, and that is what a Gwent run
+        // collects. Pinned here because they came apart once already: the tracker reported
+        // 120 while counting a different 120 - eight Northern Realms cards short, one
+        // Blood and Wine card long - and the right total is exactly what hid it.
+        string? path = new[]
+            {
+                "catalog.json",
+                Path.Combine("data", "catalog.json"),
+                Path.Combine(AppContext.BaseDirectory, "catalog.json"),
+                Path.Combine(AppContext.BaseDirectory, "data", "catalog.json"),
+            }
+            .FirstOrDefault(File.Exists);
+
+        if (path is null)
+        {
+            Console.WriteLine("        (no catalog.json to check against)");
+            return;
+        }
+
+        CatalogEntry[] entries = JsonSerializer.Deserialize(
+            File.ReadAllText(path), ApiJsonContext.Default.CatalogEntryArray) ?? [];
+
+        var state = new TrackerState();
+        foreach (string type in GameData.GwentSpecialTypes)
+        {
+            AssertTrue(
+                entries.Any(e => e.Id == $"gwent:{type}" && e.CountsToward),
+                $"the shipped catalogue to hold the special card {type}");
+        }
+
+        int Gwent(string mode) => ProgressCalculator
+            .Compute(entries, state.Groups, state.Rulesets.Single(r => r.Id == mode), state.Exceptions, NoState())
+            .ByKind
+            .Where(k => k.Kind == TrackedKind.GwentCard)
+            .Sum(k => k.Total);
+
+        AssertEqual(120, Gwent("base100"), "Gwent cards counted by 100%");
+        AssertEqual(120, Gwent("all300"), "Gwent cards counted by 300%");
+        AssertEqual(127, Gwent("gwent100"), "Gwent cards counted by a Gwent run");
+
+        // And a Gwent run counts nothing else at all.
+        RulesetProgress gwent = ProgressCalculator.Compute(
+            entries, state.Groups, state.Rulesets.Single(r => r.Id == "gwent100"), state.Exceptions, NoState());
+        AssertEqual(1, gwent.ByKind.Count, "kinds counted by a Gwent run");
+    }
+
+    private static void RecentUnlocksFollowTheChosenMode()
+    {
+        var state = new TrackerState();
+        state.Catalog.AddRange(
+        [
+            new CatalogEntry("q1", TrackedKind.Quest, "A quest", "base"),
+            new CatalogEntry("poi1", TrackedKind.PointOfInterest, "A pin", "base", "BanditCamp"),
+            new CatalogEntry("gwent:geralt", TrackedKind.GwentCard, "geralt", "base"),
+            new CatalogEntry("gwent:scorch", TrackedKind.GwentCard, "scorch", "base"),
+        ]);
+
+        foreach (string id in new[] { "gwent:geralt", "gwent:scorch", "q1", "poi1" })
+        {
+            state.Record(
+                EventSource.GameEvent,
+                [new KeyValuePair<string, CompletionState>(id, CompletionState.Done)],
+                isSnapshot: false);
+        }
+
+        // Nothing chosen yet: the feed is the run's, whatever the run has been doing.
+        AssertEqual(4, state.Snapshot().RecentUnlocks.Count, "unlocks before a mode is chosen");
+
+        // A Gwent run: cards only, and both of them, the special card included.
+        state.SetActiveMode("gwent100");
+        string[] gwent = [.. state.Snapshot().RecentUnlocks.Select(u => u.CatalogId).Order(StringComparer.Ordinal)];
+        AssertEqual("gwent:geralt,gwent:scorch", string.Join(",", gwent), "unlocks a Gwent run is told about");
+
+        // A completion run: everything except the special card, which it does not count.
+        state.SetActiveMode("base100");
+        string[] full = [.. state.Snapshot().RecentUnlocks.Select(u => u.CatalogId).Order(StringComparer.Ordinal)];
+        AssertEqual("gwent:geralt,poi1,q1", string.Join(",", full), "unlocks a completion run is told about");
+    }
     private static void ExecutableCarriesItsOwnData()
     {
         // A release is one file, and that promise is invisible from inside a checkout:
