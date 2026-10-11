@@ -51,15 +51,17 @@ The region maps under data/map/ were fitted against witcher3map by untamed0 and
 contributors (https://github.com/untamed0/witcher3map), itself licensed
 CC BY-NC-SA 4.0 and built from CD PROJEKT RED's map art under the same section 9.4.
 
-The three files under mod/modWitcherTrack/content/scripts/game/ are CD PROJEKT RED's own
-game scripts with seven one-line calls added; they are redistributed only because the
-reporter cannot function without them, and every added line is marked and documented in
-mod/HOOKS.md.
+The three files under mod/4.04/modWitcherTrack/content/scripts/game/, and the three under
+mod/5.0/modWitcherTrack/content/scripts/game/, are CD PROJEKT RED's own game scripts - of
+game versions 4.04 and 5.0 respectively - with eight one-line calls added; they are
+redistributed only because the reporter cannot function without them, and every added
+line is marked and documented in mod/HOOKS.md.
 
 The savegame container format was established with reference to W3SavegameEditor by
 Atvaark (https://github.com/Atvaark/W3SavegameEditor), MIT licensed.
 
 This project is not affiliated with or endorsed by CD PROJEKT RED.
 
-The in game timer was based on Gaztin (https://github.com/gaztin)'s work for the 
-CDPR speedrunning community.
+The in game timer was based on Gaztin (https://github.com/gaztin)'s work for the
+CDPR speedrunning community. It finds the game's loading flag with the code signatures
+of Meta's (metasr on Discord) LiveSplit autosplitter for the Remastered edition.
