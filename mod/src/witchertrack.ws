@@ -1,14 +1,22 @@
 /***********************************************************************/
-/**  modWitcherTrack  v1.2.2  - reporter for WitcherTrack
+/**  modWitcherTrack  v1.3.0  - reporter for WitcherTrack
 /**
 /**  Reports what the player has completed, so the tracker can read game
 /**  state directly instead of running OCR over the on-screen popups.
 /**
 /**  This file is additive: it declares new functions and nothing else.
-/**  Seven one-line calls into three vanilla files are what actually invoke
+/**  Eight one-line calls into three vanilla files are what actually invoke
 /**  them; they are listed in HOOKS.md and each one only appends a log
 /**  line. No vanilla behaviour is changed, no value is altered, nothing
 /**  is short-circuited, nothing is written to disk.
+/**
+/**  One file for both supported game versions, 4.04 and 5.0. The few
+/**  calls whose shape differs between them - a Gwent card's index and
+/**  ownership, an area's number - are made through WT_CardIndex,
+/**  WT_OwnsCard, WT_AreaNumber and WT_IsCurrentArea, which compat-4.04.ws
+/**  and compat-5.0.ws define once per version; patch_mod.py ships the one
+/**  that matches the scripts it patched. Everything else here means the
+/**  same thing on both, and the records have the same shape on both.
 /**
 /**  Output format, one record per line:
 /**      WT|v1|<kind>|<id>|<state>[|<extra>...]
@@ -16,12 +24,17 @@
 /**
 /**  NOTE ON IDENTIFIERS: `state` and `quest` are reserved words in
 /**  WitcherScript, so they are never used as parameter or variable
-/**  names here even where they would read best.
+/**  names here even where they would read best. 5.0's compiler refuses
+/**  more, each confirmed by compiling a declaration with it: set (vanilla
+/**  renamed a parameter called that), defaults, savepoint, local, map,
+/**  any, def, enter, NULL, and the annotation words addMethod, addField,
+/**  wrapMethod and replaceMethod. patch_mod.py checks every identifier
+/**  here against that list, and against more besides.
 /**
-/**  NOTE ON ENCODING: the game's script compiler expects UTF-16 LE with
-/**  exactly one byte-order mark, like the vanilla sources. This file is
-/**  the UTF-8 master kept for review; the packaged mod contains the
-/**  converted copy.
+/**  NOTE ON ENCODING: the vanilla sources are UTF-8 without a byte-order
+/**  mark since 5.0, and were UTF-16 LE with exactly one before it. This
+/**  file is the UTF-8 master kept for review; patch_mod.py writes the
+/**  packaged copy in the encoding the game's compiler is given.
 /***********************************************************************/
 
 
@@ -97,11 +110,13 @@ function WT_EmitAt()
 
 	// The world file for the area the player is currently in, taken from the same
 	// area list WT_DumpPins walks, so no new way of naming a world is introduced.
+	// 4.04 compares two EAreaName integers here and 5.0 two names, which is why
+	// the comparison is WT_IsCurrentArea's, from the version layer.
 	world = "";
 	areas = mm.GetAreaMapPins();
 	for( i = 0; i < areas.Size(); i += 1 )
 	{
-		if( areas[ i ].areaType == mm.GetCurrentArea() )
+		if( WT_IsCurrentArea( mm, areas[ i ] ) )
 		{
 			world = areas[ i ].worldPath;
 			break;
@@ -172,7 +187,6 @@ function WT_ContentTypeToString( c : EJournalContentType ) : string
 
 	return "ep" + IntToString( index );
 }
-
 
 /*----------------------------------------------------------------------
   Quests
@@ -299,12 +313,29 @@ function WT_DumpFormulae( witcher : W3PlayerWitcher ) : int
 /*----------------------------------------------------------------------
   Points of interest
   CCommonMapManager.GetAreaMapPins() : array<SAreaMapPinInfo>
-  CCommonMapManager.GetEntityMapPins(worldPath) : array<SEntityMapPinInfo>
+  CCommonMapManager.GetEntityMapPins(worldPath : string) : array<SEntityMapPinInfo>
   IsEntityMapPinDisabled / IsEntityMapPinDiscovered / IsEntityMapPinKnown
+      (tag : name) : bool
+
+  SAreaMapPinInfo.worldPath : string;
+  SEntityMapPinInfo.entityName : name, .entityType : name and
+  .entityPosition : Vector.
+
+  An area entry's number comes from WT_AreaNumber, in the version layer:
+  4.04 numbers an area (SAreaMapPinInfo.areaType : int) where 5.0 names it
+  (areaName : name), and the 5.0 layer turns the name back into the number
+  the records have always carried. Everything else used here is the same
+  on both versions.
 
   Semantics confirmed in commonMapManager.ws: the vanilla `onlyEnabled`
   filter discards disabled pins, which is how the game itself marks a
   point as exhausted. So disabled means cleared.
+
+  5.0 also added DisableMapPin(pinName : string, disable : bool) and
+  GetDisabledMapPins() : array<string>. They read as a different thing
+  from the flag above: mapMenu.ws hands their strings to Flash as
+  `pinType`, which makes them the world map's per-type show/hide filter
+  rather than a per-entity state, and nothing here calls them.
 
   There are thousands of pins, so areaFilter allows dumping one area at
   a time. Use the full dump on demand, not in a polling loop.
@@ -312,14 +343,15 @@ function WT_DumpFormulae( witcher : W3PlayerWitcher ) : int
 
 function WT_DumpPins( areaFilter : int, everything : bool ) : int
 {
-	var mm       : CCommonMapManager;
-	var areas    : array< SAreaMapPinInfo >;
-	var pins     : array< SEntityMapPinInfo >;
-	var seen     : array< string >;
-	var i, j, n  : int;
-	var tag      : name;
-	var pinState : string;
-	var pos      : Vector;
+	var mm          : CCommonMapManager;
+	var areas       : array< SAreaMapPinInfo >;
+	var areaIndices : array< int >;
+	var pins        : array< SEntityMapPinInfo >;
+	var seen        : array< string >;
+	var i, j, n     : int;
+	var tag         : name;
+	var pinState    : string;
+	var pos         : Vector;
 
 	n = 0;
 	mm = theGame.GetCommonMapManager();
@@ -335,17 +367,21 @@ function WT_DumpPins( areaFilter : int, everything : bool ) : int
 	// or deduplication. Kept even though the mystery it was added for is
 	// solved (see below and KNOWN-ISSUES.md) - it is cheap, and it is what
 	// proved the area list itself was never the problem.
+	//
+	// Each area's number is worked out once here and kept beside the list, since
+	// the loop below needs it again for the filter and for every record.
 	WT_Meta( "area_count", IntToString( areas.Size() ) );
 	for( i = 0; i < areas.Size(); i += 1 )
 	{
-		WT_Meta( "area_raw", IntToString( i ) + "|" + IntToString( areas[ i ].areaType ) + "|" + areas[ i ].worldPath );
+		areaIndices.PushBack( WT_AreaNumber( mm, areas[ i ] ) );
+		WT_Meta( "area_raw", IntToString( i ) + "|" + IntToString( areaIndices[ i ] ) + "|" + areas[ i ].worldPath );
 	}
 
 	for( i = 0; i < areas.Size(); i += 1 )
 	{
 		// Several area entries share a world, so the same pins would otherwise be
 		// reported more than once - roughly half of a full dump was duplicates.
-		if( ( areaFilter < 0 || areas[ i ].areaType == areaFilter )
+		if( ( areaFilter < 0 || areaIndices[ i ] == areaFilter )
 		    && !seen.Contains( areas[ i ].worldPath ) )
 		{
 			seen.PushBack( areas[ i ].worldPath );
@@ -397,7 +433,7 @@ function WT_DumpPins( areaFilter : int, everything : bool ) : int
 				// on the ground, whatever their entityType says. Z is left out: nothing
 				// here needs elevation, and it would just be one more field to parse.
 				//
-				// worldPath trails X/Y for the same reason areaType does: the tracker
+				// worldPath trails X/Y for the same reason the area number does: the tracker
 				// already asks this manager for one world file at a time (see the loop
 				// above and KNOWN-ISSUES.md's Toussaint entry), so it already knows the
 				// answer - the coordinates themselves reset per streamed world and are
@@ -407,7 +443,7 @@ function WT_DumpPins( areaFilter : int, everything : bool ) : int
 				WT_EmitNamed( "poi",
 				              NameToString( tag ),
 				              pinState,
-				              NameToString( pins[ j ].entityType ) + "|" + IntToString( areas[ i ].areaType )
+				              NameToString( pins[ j ].entityType ) + "|" + IntToString( areaIndices[ i ] )
 				                + "|" + FloatToString( pos.X ) + "|" + FloatToString( pos.Y )
 				                + "|" + areas[ i ].worldPath,
 				              GetLocStringByKeyExt( StrLower( "map_location_" + NameToString( tag ) ) ) );
@@ -423,13 +459,20 @@ function WT_DumpPins( areaFilter : int, everything : bool ) : int
 /*----------------------------------------------------------------------
   Gwent
   CR4GwintManager.GetCardDefs() : array<SCardDefinition>
-  CR4GwintManager.HasCardInCollection(index : int) : bool
+  SCardDefinition.faction : eGwintFaction
+
+  Ownership and the card's index come from WT_OwnsCard and WT_CardIndex,
+  in the version layer: 4.04 keys a card by its `index` field, 5.0 by its
+  name, with the index from CR4GwintManager.GetIndex(). The records carry
+  the index on both, because that is what the tracker folds into a card
+  type (GameData.GwentCardTypes) and what run.json already holds.
 ----------------------------------------------------------------------*/
 
 function WT_DumpGwent( everything : bool ) : int
 {
 	var gm        : CR4GwintManager;
 	var defs      : array< SCardDefinition >;
+	var card      : SCardDefinition;
 	var i, n      : int;
 	var cardState : string;
 
@@ -444,7 +487,9 @@ function WT_DumpGwent( everything : bool ) : int
 	defs = gm.GetCardDefs();
 	for( i = 0; i < defs.Size(); i += 1 )
 	{
-		if( gm.HasCardInCollection( defs[ i ].index ) )
+		card = defs[ i ];
+
+		if( WT_OwnsCard( gm, card ) )
 			cardState = "done";
 		else
 			cardState = "not_done";
@@ -458,9 +503,9 @@ function WT_DumpGwent( everything : bool ) : int
 		// The faction is reported so the base-game collection can be counted
 		// separately from the Skellige deck.
 		WT_Emit2( "gwent",
-		          IntToString( defs[ i ].index ),
+		          IntToString( WT_CardIndex( gm, card ) ),
 		          cardState,
-		          WT_GwintFactionToString( defs[ i ].faction ) );
+		          WT_GwintFactionToString( card.faction ) );
 		n += 1;
 	}
 
@@ -473,7 +518,7 @@ function WT_DumpGwent( everything : bool ) : int
 /*======================================================================
   Hook entry points
 
-  These are what the five inserted calls invoke. WT_OnPlayerSpawned is
+  These are what the eight inserted calls invoke. WT_OnPlayerSpawned is
   the important one: OnSpawned fires every time the player entity is
   created, which includes every savegame load, so the tracker receives a
   complete snapshot exactly when it needs one - right after the player
@@ -556,8 +601,11 @@ function WT_OnQuestUpdate( journalQuest : CJournalQuest )
 	}
 }
 
-/// Called from CR4Player.AddGwentCard, inside the game's own test that the
-/// card name resolved to a real index.
+/// Called from W3PlayerWitcher.AddGwentCard, past the game's own test that the
+/// card resolved to a definition - in 5.0 the function returns early when
+/// gwintManager.GetGwentCard( cardName, cardDefinition ) fails - with
+/// gwintManager.GetIndex( cardDefinition ) as the index. 4.04 had the index
+/// to hand already and tested it against -1 instead.
 ///
 /// This is the live signal for a Gwent card. Every other route was tried
 /// first: there is no journal notification for a card, the collection quest
@@ -566,9 +614,9 @@ function WT_OnQuestUpdate( journalQuest : CJournalQuest )
 /// decides a card is being added, so there is nowhere earlier to look.
 ///
 /// The index is reported rather than swept, which is the one place this file
-/// departs from reading state back. It is not a guess: it is the value the
-/// game is about to hand to AddCardToCollection, inside its own check that the
-/// name resolved to something. Sweeping the *collection* here would re-list all
+/// departs from reading state back. It is not a guess: it belongs to the very
+/// definition the game has just resolved and is about to hand, by name, to
+/// AddCardToCollection. Sweeping the *collection* here would re-list all
 /// of it - a hundred and fifty lines late in a run - on every single card, and
 /// the report on load re-reads it anyway. The map pins are a different question
 /// and are swept, as they are everywhere else; see the call below.
@@ -704,6 +752,7 @@ function WT_SweepOwnedCards() : int
 {
 	var gm    : CR4GwintManager;
 	var defs  : array< SCardDefinition >;
+	var card  : SCardDefinition;
 	var i, n  : int;
 
 	n = 0;
@@ -713,15 +762,19 @@ function WT_SweepOwnedCards() : int
 		return 0;
 	}
 
+	// Ownership and the index come from the version layer, as in WT_DumpGwent -
+	// see the comment block above it.
 	defs = gm.GetCardDefs();
 	for( i = 0; i < defs.Size(); i += 1 )
 	{
-		if( gm.HasCardInCollection( defs[ i ].index ) )
+		card = defs[ i ];
+
+		if( WT_OwnsCard( gm, card ) )
 		{
 			WT_Emit2( "gwent",
-			          IntToString( defs[ i ].index ),
+			          IntToString( WT_CardIndex( gm, card ) ),
 			          "done",
-			          WT_GwintFactionToString( defs[ i ].faction ) );
+			          WT_GwintFactionToString( card.faction ) );
 			n += 1;
 		}
 	}
@@ -757,6 +810,14 @@ function WT_OnShrineBuff()
 
 /// Called from W3PlayerWitcher.Meditate, once meditation has actually begun.
 ///
+/// In 5.0 Meditate has two branches. If the player is already in the
+/// 'Meditation' state it only reopens that meditation's menu; otherwise it
+/// enters the state - GotoState('Meditation'), then FindMeditateHeading and
+/// SetMeditationPointHeading, which is now a private function of the player
+/// rather than of the meditation state. The hook belongs at the end of the
+/// second branch, so it runs once per meditation and not again each time
+/// the menu comes back.
+///
 /// This one reports nothing of its own: it is a heartbeat. Every other live
 /// hook is a notification about something else that happens to prompt a
 /// re-read, so a point of interest the game has already put out waits for the
@@ -778,6 +839,12 @@ function WT_OnMeditation()
 /// Called from CR4HudModuleJournalUpdate.AddMapPinUpdate.
 /// A pin notification means the pin changed; the authoritative state is
 /// read back from the map manager rather than assumed.
+///
+/// 5.0 gave AddMapPinUpdate a second parameter, ( mapPinName : name,
+/// mapPinType : name ). Only the first is passed on: it is the same value it
+/// was in 4.04 - CCommonMapManager.SetEntityMapPinDiscoveredScript still sends
+/// the pin type in place of the tag for points of interest - and the records
+/// keep the shape they had.
 function WT_OnMapPinUpdate( mapPinName : name )
 {
 	var mm       : CCommonMapManager;
@@ -816,7 +883,7 @@ function WT_OnMapPinUpdate( mapPinName : name )
 
 exec function wt_ping()
 {
-	WT_Meta( "ping", "modWitcherTrack v1.2.2" );
+	WT_Meta( "ping", "modWitcherTrack v1.3.0 for " + WT_GameTarget() );
 }
 
 exec function wt_quests()
