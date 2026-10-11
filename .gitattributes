@@ -1,0 +1,7 @@
+# The shipped mod builds are the game's own scripts plus marked lines, byte for byte, and
+# mod/patch_mod.py checks exactly that. 5.0's vanilla scripts are UTF-8 with CRLF on most
+# lines and a bare LF on some, so any end-of-line conversion on commit or checkout - which
+# core.autocrlf applies to anything that looks like text - would turn a faithful copy into
+# a different file. The 4.04 copies were only spared because UTF-16 looks binary to git.
+mod/4.04/** -text
+mod/5.0/** -text
