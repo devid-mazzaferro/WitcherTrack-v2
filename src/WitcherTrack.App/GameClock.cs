@@ -20,18 +20,23 @@ namespace WitcherTrack.App;
 /// recorded was spent loading, so it cannot be retrofitted onto a run already in progress.
 /// </para>
 /// <para>
-/// The offsets below are copied from the community autosplitter's ASL script, keyed by the
-/// same five build identifiers it uses, resolved the same way it resolves them: the
-/// executable's own file version, plus - for the one file version shared by both Complete
-/// Edition builds - the name of the folder it runs from, to tell DirectX 11 and DirectX 12
-/// apart. A build this does not recognise is reported as such rather than guessed at: a
-/// wrong offset would read whatever else happens to sit at that address and say nothing is
-/// wrong.
+/// The flag is found the way Meta's LiveSplit autosplitter for the Remastered edition
+/// (metasr on Discord) finds it: by scanning the game's code for the instructions that
+/// read it, and taking its address out of the one that matched (see
+/// <see cref="NotLoadingFlag"/>). That keeps working across a rebuild that moves the flag,
+/// which is what the Remastered release did. Only when no signature matches does this
+/// fall back to the fixed offsets the earlier Load Remover carried, keyed
+/// by the same five build identifiers and resolved the same way: the executable's own
+/// file version, plus - for the one file version shared by both Complete Edition builds -
+/// the name of the folder it runs from, to tell DirectX 11 and DirectX 12 apart. A build
+/// neither recognises is reported as such rather than guessed at: a wrong address would
+/// read whatever else happens to sit there and say nothing is wrong.
 /// </para>
 /// <para>
 /// Reading another process's memory is a Windows-only operation with no equivalent
 /// elsewhere, so this type - and only this type - is marked accordingly. Every other
-/// source works on any platform .NET runs on.
+/// source works on any platform .NET runs on, and so do the signature matching and the
+/// address arithmetic, which take the memory reader as an argument.
 /// </para>
 /// </remarks>
 [SupportedOSPlatform("windows")]
@@ -43,8 +48,15 @@ internal sealed partial class GameClock : IDisposable
 
     /// <summary>
     /// The "not loading" flag's byte offset from the main module's base address, per build.
-    /// Straight from the autosplitter's <c>state(...)</c> blocks.
+    /// Straight from the autosplitter's earlier <c>state(...)</c> blocks, and consulted only
+    /// when <see cref="NotLoadingFlag.Signatures"/> find nothing.
     /// </summary>
+    /// <remarks>
+    /// Kept, rather than retired along with the autosplitter's own table, because the
+    /// signatures are only known to cover the builds they are labelled with. If a build
+    /// listed here is one they miss, dropping its offset would turn a working clock into an
+    /// "unrecognised build".
+    /// </remarks>
     private static readonly Dictionary<string, nint> OffsetsByBuild = new(StringComparer.Ordinal)
     {
         ["standard"] = 0x02CCB638,
@@ -55,6 +67,20 @@ internal sealed partial class GameClock : IDisposable
     };
 
     private readonly Lock _gate = new();
+
+    /// <summary>
+    /// Serialises <see cref="Start"/> and <see cref="Stop"/> as wholes.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="_gate"/> guards each field, not the sequence detach-attach-poll, and two
+    /// starts interleaved inside that sequence - a double click on the dashboard's button
+    /// sends two requests - each installed a polling loop: one handle leaked, one loop was
+    /// never cancelled, and in-game time accrued twice over until the tracker was restarted.
+    /// A separate lock, because the signature scan runs inside a start and the getters,
+    /// which take <see cref="_gate"/>, must not wait on it.
+    /// </remarks>
+    private readonly Lock _lifecycle = new();
+
     private readonly TimeSpan _pollInterval;
     private readonly IgtAccumulator _accumulator = new();
 
@@ -80,11 +106,12 @@ internal sealed partial class GameClock : IDisposable
     /// anyone can tell whether the option actually did anything.
     /// </summary>
     /// <remarks>
-    /// The build name survives for as long as the clock stays attached. It used to be
-    /// cleared by the first successful read, which left the interface with nothing to show
-    /// exactly when it was working - and the build name is the one thing worth checking
-    /// when the accumulated time looks wrong, because a wrong build means a wrong offset
-    /// and a flag that never changes.
+    /// The build, and how the flag was found in it - by signature, naming the signature and
+    /// the offset it led to, or by a known offset - survives for as long as the clock stays
+    /// attached. It used to be cleared by the first successful read, which left the
+    /// interface with nothing to show exactly when it was working - and it is the one thing
+    /// worth checking when the accumulated time looks wrong, because a wrong address means
+    /// a flag that never changes.
     /// </remarks>
     public string? Detail
     {
@@ -123,40 +150,43 @@ internal sealed partial class GameClock : IDisposable
     /// the run itself, the one action that already means "this is a new run".
     /// </remarks>
     /// <returns>
-    /// True if a supported build was found and attached to. False leaves the clock stopped
-    /// and <see cref="Detail"/> explains why - the game is not running, or its build is not
-    /// one of the five the offsets above cover.
+    /// True if the flag was found and the game attached to. False leaves the clock stopped
+    /// and <see cref="Detail"/> explains why - the game is not running, or no signature
+    /// matched its code and its build is not one of the five the offsets above cover.
     /// </returns>
     public bool Start()
     {
-        Stop();
-
-        if (!TryAttach(out string detail))
+        lock (_lifecycle)
         {
-            lock (_gate)
+            Detach();
+
+            if (!TryAttach(out string detail))
             {
-                _build = null;
-                _failure = detail;
+                lock (_gate)
+                {
+                    _build = null;
+                    _failure = detail;
+                }
+
+                return false;
             }
 
-            return false;
+            var cancellation = new CancellationTokenSource();
+
+            lock (_gate)
+            {
+                _build = detail;
+                _failure = null;
+
+                // The last loading flag read belongs to a previous attachment and says nothing
+                // about the game running now.
+                _accumulator.Forget();
+                _loop = cancellation;
+            }
+
+            _ = PollAsync(cancellation.Token);
+            return true;
         }
-
-        var cancellation = new CancellationTokenSource();
-
-        lock (_gate)
-        {
-            _build = detail;
-            _failure = null;
-
-            // The last loading flag read belongs to a previous attachment and says nothing
-            // about the game running now.
-            _accumulator.Forget();
-            _loop = cancellation;
-        }
-
-        _ = PollAsync(cancellation.Token);
-        return true;
     }
 
     /// <summary>
@@ -181,6 +211,15 @@ internal sealed partial class GameClock : IDisposable
 
     /// <summary>Detaches and pauses accumulating. <see cref="Elapsed"/> keeps its value.</summary>
     public void Stop()
+    {
+        lock (_lifecycle)
+        {
+            Detach();
+        }
+    }
+
+    /// <summary>The body of <see cref="Stop"/>, for callers already holding <see cref="_lifecycle"/>.</summary>
+    private void Detach()
     {
         CancellationTokenSource? loop;
         IntPtr handle;
@@ -212,69 +251,120 @@ internal sealed partial class GameClock : IDisposable
     public void Dispose() => Stop();
 
     /// <summary>
-    /// Finds the game process, works out which build it is, and opens a handle to read its
-    /// memory. Kept separate from the polling loop so a lost process can be retried without
+    /// Finds the game process, opens a handle to read its memory, and locates the flag in
+    /// it. Kept separate from the polling loop so a lost process can be retried without
     /// tearing down and rebuilding the whole loop.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Signatures first, in the autosplitter's order, then the per-build offsets. The scan
+    /// runs once, here, over the game's code sections - a few dozen reads of a megabyte
+    /// each - and the poll afterwards reads the one byte it found, exactly as before.
+    /// </para>
+    /// <para>
+    /// The handle is opened before the build is looked at now, because the signatures are
+    /// looked for in the game's memory and the build only matters if they find nothing. It
+    /// is closed again on every path that does not end attached, an exception included.
+    /// </para>
+    /// </remarks>
     private bool TryAttach(out string detail)
     {
         Process[] candidates = Process.GetProcessesByName(ProcessName);
-        if (candidates.Length == 0)
-        {
-            detail = "witcher3.exe is not running";
-            return false;
-        }
-
-        Process process = candidates[0];
-        ProcessModule? mainModule;
+        IntPtr handle = IntPtr.Zero;
+        bool attached = false;
 
         try
         {
-            mainModule = process.MainModule;
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
-        {
-            detail = $"could not read the game's process ({ex.Message})";
-            return false;
-        }
+            if (candidates.Length == 0)
+            {
+                detail = "witcher3.exe is not running";
+                return false;
+            }
 
-        if (mainModule is null)
-        {
-            detail = "could not read the game's main module";
-            return false;
-        }
+            Process process = candidates[0];
+            ProcessModule? mainModule;
 
-        string? build = DetectBuild(mainModule.FileVersionInfo, mainModule.FileName);
-        if (build is null)
-        {
-            detail = "unrecognised game build (file version " +
-                      $"{mainModule.FileVersionInfo.FileMajorPart}." +
-                      $"{mainModule.FileVersionInfo.FileMinorPart}." +
-                      $"{mainModule.FileVersionInfo.FileBuildPart}." +
-                      $"{mainModule.FileVersionInfo.FilePrivatePart}) - " +
-                      "not one of the five the offsets are known for";
-            return false;
-        }
+            try
+            {
+                mainModule = process.MainModule;
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+                detail = $"could not read the game's process ({ex.Message})";
+                return false;
+            }
 
-        IntPtr handle = OpenProcess(ProcessVmRead | ProcessQueryInformation, false, process.Id);
-        if (handle == IntPtr.Zero)
-        {
-            detail = "could not open the game process to read its memory";
-            return false;
-        }
+            if (mainModule is null)
+            {
+                detail = "could not read the game's main module";
+                return false;
+            }
 
-        lock (_gate)
-        {
-            _processHandle = handle;
-            _flagAddress = mainModule.BaseAddress + OffsetsByBuild[build];
-        }
+            handle = OpenProcess(ProcessVmRead | ProcessQueryInformation, false, process.Id);
+            if (handle == IntPtr.Zero)
+            {
+                detail = "could not open the game process to read its memory";
+                return false;
+            }
 
-        detail = build;
-        return true;
+            nint imageBase = mainModule.BaseAddress;
+            string fileVersion = FileVersionText(mainModule.FileVersionInfo);
+            nint flagAddress;
+
+            LocatedFlag? located = NotLoadingFlag.Locate(
+                (address, buffer) => ReadMemory(handle, address, buffer), imageBase, mainModule.ModuleMemorySize,
+                out SignatureMatch? rejected);
+
+            // Said only when it happened: a signature that matched and was refused is a
+            // different problem from one that matched nothing, and the detail is what gets
+            // read when the clock misbehaves.
+            string refusal = rejected is { } refused
+                ? $"signature ({refused.Signature.Label}) matched at +0x{refused.Address - imageBase:X} " +
+                  $"but led to +0x{refused.Target - imageBase:X}, outside any writable section"
+                : "no signature matched its code";
+
+            if (located is { } found)
+            {
+                flagAddress = (nint)found.Address;
+                detail = $"{fileVersion}, located by signature ({found.Label}) at +0x{found.Address - imageBase:X}";
+            }
+            else if (DetectBuild(mainModule.FileVersionInfo, mainModule.FileName) is { } build)
+            {
+                flagAddress = imageBase + OffsetsByBuild[build];
+                detail = rejected is null ? $"{build}, known offset" : $"{build}, known offset ({refusal})";
+            }
+            else
+            {
+                detail = $"unrecognised game build (file version {fileVersion}) - {refusal}, " +
+                         "and it is not one of the five builds the offsets are known for";
+                return false;
+            }
+
+            lock (_gate)
+            {
+                _processHandle = handle;
+                _flagAddress = flagAddress;
+            }
+
+            attached = true;
+            return true;
+        }
+        finally
+        {
+            if (!attached && handle != IntPtr.Zero)
+            {
+                CloseHandle(handle);
+            }
+
+            foreach (Process candidate in candidates)
+            {
+                candidate.Dispose();
+            }
+        }
     }
 
     /// <summary>
-    /// Identifies the build the same way the autosplitter's <c>init</c> block does: by the
+    /// Identifies the build the same way the autosplitter's <c>init</c> block used to: by the
     /// executable's own file version, and - for the one version both Complete Edition
     /// builds share - by the folder it runs from.
     /// </summary>
@@ -285,14 +375,18 @@ internal sealed partial class GameClock : IDisposable
     /// on any platform, checked directly against the autosplitter's own version table
     /// without a running game.
     /// </remarks>
-    internal static string? DetectBuild(FileVersionInfo fileVersionInfo, string executablePath)
-    {
-        string fileVersion = string.Join('.',
+    internal static string? DetectBuild(FileVersionInfo fileVersionInfo, string executablePath) =>
+        GameBuildDetector.Detect(FileVersionText(fileVersionInfo), executablePath);
+
+    /// <summary>The executable's file version as four dotted numbers, as the build table spells it.</summary>
+    private static string FileVersionText(FileVersionInfo fileVersionInfo) =>
+        string.Join('.',
             fileVersionInfo.FileMajorPart, fileVersionInfo.FileMinorPart,
             fileVersionInfo.FileBuildPart, fileVersionInfo.FilePrivatePart);
 
-        return GameBuildDetector.Detect(fileVersion, executablePath);
-    }
+    /// <summary>Reads the game's memory for the signature scan; false unless every byte arrived.</summary>
+    private static bool ReadMemory(IntPtr handle, long address, Span<byte> buffer) =>
+        ReadProcessMemory(handle, (IntPtr)address, buffer, buffer.Length, out nint bytesRead) && bytesRead == buffer.Length;
 
     /// <summary>
     /// Polls the "not loading" flag and hands each interval to <see cref="IgtAccumulator"/>,
