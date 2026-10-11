@@ -41,14 +41,41 @@ jobs:
           -p:StripSymbols=true
           -o publish
 
-      # The reporter is zipped from what is committed, not regenerated here: patching
+      # The reporter is built twice, for game 4.04 and for 5.0 and later, and both builds
+      # are zipped from what is committed, not regenerated from the game here: patching
       # needs the game's own vanilla scripts, which are not in this repository and cannot
-      # be in a CI runner either. Regenerating it is a maintainer step, run locally with
-      #   python mod/patch_mod.py --scripts <game>/content/content0/scripts
+      # be in a CI runner either. Regenerating is a maintainer step, run locally with
+      #   python mod/patch_mod.py --scripts <game>/content/content0/scripts   (5.0)
+      #   python mod/patch_mod.py --target 4.04 --from-shipped               (4.04)
       # and committed - so what ships is exactly what was reviewed.
+      #
+      # What CI can do is prove the committed builds are what the committed sources make.
+      # --from-shipped takes the marked lines back out of each build's own copies, which
+      # recovers vanilla without the game, patches it again from the current reporter and
+      # version layer, and runs every check patch_mod.py has; a reporter change that was
+      # never regenerated shows up as a difference. .gitattributes keeps the checkout
+      # byte-exact, or the comparison would prove nothing.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check both reporter builds match their sources
+        shell: pwsh
+        run: |
+          python -B mod/patch_mod.py --target 4.04 --from-shipped
+          if ($LASTEXITCODE -ne 0) { throw "the 4.04 build failed its checks" }
+          python -B mod/patch_mod.py --target 5.0 --from-shipped
+          if ($LASTEXITCODE -ne 0) { throw "the 5.0 build failed its checks" }
+          git diff --exit-code -- mod/4.04 mod/5.0
+          if ($LASTEXITCODE -ne 0) { throw "a committed build is not what its sources make - regenerate it" }
+
+      # Each zip holds the modWitcherTrack folder at its root, so it unpacks straight
+      # into the game's Mods folder whichever build it is.
       - name: Package the in-game reporter
         shell: pwsh
-        run: Compress-Archive -Path mod/modWitcherTrack -DestinationPath modWitcherTrack.zip
+        run: |
+          Compress-Archive -Path mod/4.04/modWitcherTrack -DestinationPath modWitcherTrack-4.04.zip
+          Compress-Archive -Path mod/5.0/modWitcherTrack -DestinationPath modWitcherTrack-5.0.zip
 
       # The published folder also holds loose copies of the catalogue and the map, because
       # that is what "dotnet run" reads during development. A downloader gets none of
@@ -71,10 +98,11 @@ jobs:
           name: WitcherTrack-win-x64
           path: |
             publish/WitcherTrack.exe
-            modWitcherTrack.zip
+            modWitcherTrack-4.04.zip
+            modWitcherTrack-5.0.zip
 
-      # Three things are attached, and GitHub adds the source archives itself: the
-      # executable, the reporter, and the setup notes. There is no bundle zip any more -
+      # Four things are attached, and GitHub adds the source archives itself: the
+      # executable, the reporter for each game version, and the setup notes. There is no bundle zip any more -
       # the executable carries its own data, so a zip around it would only be a folder to
       # extract before getting the same file.
       - name: Attach to the release
@@ -93,15 +121,19 @@ jobs:
 
             **What to download.** `WitcherTrack.exe` is the whole tracker: the catalogue,
             the map artwork and the interface all travel inside it, and it needs no folder
-            beside it. `modWitcherTrack.zip` is the in-game reporter, to unzip into the
-            game's `Mods` folder. `INSTALL.md` is the short setup, and the source archives
-            below are the code the executable was built from.
+            beside it, whichever game version you play. The in-game reporter comes in two
+            builds, to unzip into the game's `Mods` folder: `modWitcherTrack-5.0.zip` for
+            game version 5.0 and later, `modWitcherTrack-4.04.zip` for 4.04. Only one of
+            them, the one matching your game. `INSTALL.md` is the short setup, and the source
+            archives below are the code the executable was built from.
 
-            The game must be launched with `-debugscripts`, and the reporter must be in
-            place before it starts, because the game compiles its scripts at launch. The
-            tracker itself can be started before, after or mid-session.
+            The game has to write its script log: on 5.0, a file `bin\x64_dx12\commandline.txt`
+            containing `-debugscripts`; on 4.04, `-debugscripts` as a launch option. The
+            reporter must be in place before the game starts, because the game compiles its
+            scripts at launch. The tracker itself can be started before, after or mid-session.
           files: |
             publish/WitcherTrack.exe
-            modWitcherTrack.zip
+            modWitcherTrack-4.04.zip
+            modWitcherTrack-5.0.zip
             INSTALL.md
           generate_release_notes: true
